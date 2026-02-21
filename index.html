@@ -14,22 +14,28 @@
             <button class="btn btn-small" id="fps-toggle">Show FPS</button>
             <button class="btn btn-play" id="pause-btn">▶ Play</button>
         </div>
-        <div id="offline-banner" class="offline-banner" style="display: none;"></div>
+        <div id="offline-banner" class="offline-banner"></div>
     </div>
 
     <div class="main-content">
         <!-- Left Panel -->
         <aside class="left-panel">
-            <div class="panel">
+            <div class="panel resources-panel">
                 <h2 class="panel-title">💰 Resources</h2>
                 <div id="resources"></div>
             </div>
-            <div class="passive-stats">
-                <div class="passive-title">📊 Passive Income</div>
+            <div class="panel passive-panel">
+                <h2 class="panel-title">📊 Passive Income</h2>
                 <div id="passive-stats"></div>
             </div>
-            <div id="node-panel"></div>
-            <div id="farm-panel"></div>
+            <div class="panel nodes-panel">
+                <h2 class="panel-title">🗺️ Regions</h2>
+                <div id="node-panel"></div>
+            </div>
+            <div class="panel farms-panel">
+                <h2 class="panel-title">🌾 Farms</h2>
+                <div id="farm-panel"></div>
+            </div>
         </aside>
 
         <!-- Center Canvas -->
@@ -48,52 +54,53 @@
         <aside class="right-panel">
             <div class="tab-buttons" id="tab-buttons"></div>
             <div class="tab-content" id="tab-content"></div>
-            <div class="save-panel">
-                <button class="save-btn" onclick="Game.saveGame()">💾 Save</button>
-                <button class="save-btn" onclick="Game.exportSave()">📤 Export</button>
-                <button class="save-btn" onclick="UI.showImportModal()">📥 Import</button>
+            <div class="action-panel">
+                <button class="action-btn" onclick="Game.saveGame()">💾 Save</button>
+                <button class="action-btn" onclick="Game.exportSave()">📤 Export</button>
+                <button class="action-btn" onclick="UI.showImportModal()">📥 Import</button>
             </div>
         </aside>
     </div>
 
-    <!-- Modals -->
+    <!-- Party Creation Modal -->
     <div class="modal" id="char-modal">
         <div class="modal-content">
-            <h2>Create Your Party</h2>
-            <p>Select 4 characters (this will be locked until you prestige).</p>
-            <div class="class-list" id="class-list"></div>
+            <h2>⚔️ Form Your Party</h2>
+            <p>Choose 4 heroes. This party will be locked until you prestige.</p>
+            <div class="class-grid" id="class-list"></div>
             <div class="selected-count" id="selected-count">Selected: 0/4</div>
-            <button id="start-game-btn" class="import-btn" onclick="Game.startWithSelectedParty()" disabled>Start Adventure</button>
+            <button id="start-game-btn" class="modal-btn primary" onclick="Game.startWithSelectedParty()" disabled>Start Adventure</button>
             <div class="import-section">
-                <h3>Or Import Save</h3>
+                <h3>📥 Import Save</h3>
                 <textarea class="import-input" id="import-input" placeholder="Paste save data..."></textarea>
-                <button class="import-btn" onclick="Game.importSave()">Import</button>
+                <button class="modal-btn" onclick="Game.importSave()">Import</button>
             </div>
-            <button class="close-btn" onclick="UI.hideModal('char-modal')">Cancel</button>
+            <button class="modal-btn close-btn" onclick="UI.hideModal('char-modal')">Cancel</button>
         </div>
     </div>
 
+    <!-- Export Modal -->
     <div class="modal" id="export-modal">
         <div class="modal-content">
-            <h2>Save Data</h2>
+            <h2>📤 Export Save</h2>
             <p id="export-msg">Save copied to clipboard!</p>
             <textarea class="export-area" id="export-area" readonly></textarea>
-            <button class="close-btn" onclick="UI.hideModal('export-modal')">Close</button>
+            <button class="modal-btn close-btn" onclick="UI.hideModal('export-modal')">Close</button>
         </div>
     </div>
 
     <!-- Delete Confirmation Modal -->
     <div class="modal" id="delete-modal">
         <div class="modal-content">
-            <h2>Delete All Data?</h2>
-            <p>This will erase everything, including prestige progress. Are you sure?</p>
-            <button class="import-btn" style="background:#ef4444;" onclick="Game.deleteAllData()">Yes, Delete Everything</button>
-            <button class="close-btn" onclick="UI.hideModal('delete-modal')">Cancel</button>
+            <h2>⚠️ Delete All Data</h2>
+            <p>This will erase everything, including prestige. Are you absolutely sure?</p>
+            <button class="modal-btn" style="background:#ef4444;" onclick="Game.deleteAllData()">Yes, Delete Everything</button>
+            <button class="modal-btn close-btn" onclick="UI.hideModal('delete-modal')">Cancel</button>
         </div>
     </div>
 
     <!-- Skill Tooltip -->
-    <div class="skill-tooltip" id="skill-tooltip" style="display: none;"></div>
+    <div class="skill-tooltip" id="skill-tooltip"></div>
 
     <script src="script.js"></script>
 </body>
