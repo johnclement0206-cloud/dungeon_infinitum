@@ -587,3 +587,33 @@ body {
 .rarity-rare { color: #3b82f6; }
 .rarity-epic { color: #a855f7; }
 .rarity-legendary { color: #f59e0b; }
+
+
+.offline-banner {
+    position: absolute;
+    top: 60px;
+    right: 20px;
+    background: #1e3a1e;
+    color: #22c55e;
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    border: 1px solid #22c55e;
+    font-size: 0.875rem;
+    font-weight: bold;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    z-index: 100;
+    animation: fadeOut 5s forwards;
+}
+
+@keyframes fadeOut {
+    0% { opacity: 1; }
+    70% { opacity: 1; }
+    100% { opacity: 0; display: none; }
+}
+
+.selected-count {
+    text-align: center;
+    margin: 0.5rem 0;
+    font-size: 1rem;
+    color: #fbbf24;
+}

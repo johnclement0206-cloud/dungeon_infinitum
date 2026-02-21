@@ -14,10 +14,11 @@
             <button class="btn btn-small" id="fps-toggle">Show FPS</button>
             <button class="btn btn-play" id="pause-btn">▶ Play</button>
         </div>
+        <div id="offline-banner" class="offline-banner" style="display: none;"></div>
     </div>
 
     <div class="main-content">
-        <!-- Left Panel (Resources & Nodes) -->
+        <!-- Left Panel -->
         <aside class="left-panel">
             <div class="panel">
                 <h2 class="panel-title">💰 Resources</h2>
@@ -31,7 +32,7 @@
             <div id="farm-panel"></div>
         </aside>
 
-        <!-- Center Canvas (Dungeon View) -->
+        <!-- Center Canvas -->
         <main class="game-view">
             <canvas id="mainCanvas" width="800" height="600"></canvas>
             <canvas id="minimapCanvas" width="150" height="150"></canvas>
@@ -43,7 +44,7 @@
             <div class="combat-log" id="combat-log"></div>
         </main>
 
-        <!-- Right Panel (Tabs) -->
+        <!-- Right Panel -->
         <aside class="right-panel">
             <div class="tab-buttons" id="tab-buttons"></div>
             <div class="tab-content" id="tab-content"></div>
@@ -58,14 +59,17 @@
     <!-- Modals -->
     <div class="modal" id="char-modal">
         <div class="modal-content">
-            <h2>Add New Character</h2>
+            <h2>Create Your Party</h2>
+            <p>Select 4 characters (this will be locked until you prestige).</p>
             <div class="class-list" id="class-list"></div>
+            <div class="selected-count" id="selected-count">Selected: 0/4</div>
+            <button id="start-game-btn" class="import-btn" onclick="Game.startWithSelectedParty()" disabled>Start Adventure</button>
             <div class="import-section">
                 <h3>Or Import Save</h3>
                 <textarea class="import-input" id="import-input" placeholder="Paste save data..."></textarea>
                 <button class="import-btn" onclick="Game.importSave()">Import</button>
             </div>
-            <button class="close-btn" onclick="UI.hideModal('char-modal')">Close</button>
+            <button class="close-btn" onclick="UI.hideModal('char-modal')">Cancel</button>
         </div>
     </div>
 
@@ -75,6 +79,16 @@
             <p id="export-msg">Save copied to clipboard!</p>
             <textarea class="export-area" id="export-area" readonly></textarea>
             <button class="close-btn" onclick="UI.hideModal('export-modal')">Close</button>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div class="modal" id="delete-modal">
+        <div class="modal-content">
+            <h2>Delete All Data?</h2>
+            <p>This will erase everything, including prestige progress. Are you sure?</p>
+            <button class="import-btn" style="background:#ef4444;" onclick="Game.deleteAllData()">Yes, Delete Everything</button>
+            <button class="close-btn" onclick="UI.hideModal('delete-modal')">Cancel</button>
         </div>
     </div>
 

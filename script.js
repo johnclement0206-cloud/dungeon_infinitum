@@ -232,6 +232,7 @@ const GameState = {
     gold: 100,
     adventurePoints: 0,
     party: [],
+    partyLocked: false,        // new: prevents changes after start
     nodes: {},
     currentDungeon: null,
     currentRoomIndex: 0,
@@ -485,11 +486,18 @@ const Game = {
         PRESTIGE_UPGRADES.forEach(u => {
             if (!GameState.prestigeUpgrades[u.id]) GameState.prestigeUpgrades[u.id] = 0;
         });
-        if (GameState.party.length === 0) this.addCharacter('fighter');
+        // If no party and not locked, show creation modal
+        if (GameState.party.length === 0 && !GameState.partyLocked) {
+            UI.showCharModal();
+        } else if (GameState.party.length > 0) {
+            // Already have a party, ensure it's locked
+            GameState.partyLocked = true;
+        }
         const offline = this.calculateOffline();
-        if (offline.gold > 0) {
+        if (offline.gold > 0 || offline.kills > 0) {
             GameState.gold += offline.gold;
-            UI.showOfflineBonus(offline.gold, offline.kills);
+            GameState.totalGoldEarned += offline.gold;
+            UI.showOfflineBanner(offline.gold, offline.kills);
         }
         this.recalculatePassiveIncome();
         this.saveGame();
@@ -522,7 +530,23 @@ const Game = {
         GameState.loot = room.loot;
     },
 
+    // New: start with selected party (called from modal)
+    startWithSelectedParty() {
+        if (UI.selectedClasses.length !== 4) return;
+        GameState.party = [];
+        UI.selectedClasses.forEach((classKey, index) => {
+            const char = new Character(classKey, generateId());
+            GameState.party.push(char);
+        });
+        GameState.partyLocked = true;
+        UI.hideModal('char-modal');
+        this.enterFirstDungeon();
+        this.saveGame();
+        UI.renderAll();
+    },
+
     addCharacter(className) {
+        if (GameState.partyLocked) return false; // cannot add when locked
         const maxParty = 4 + (GameState.prestigeUpgrades.extra_slot || 0);
         if (GameState.party.length >= maxParty) return false;
         const char = new Character(className, generateId());
@@ -532,6 +556,7 @@ const Game = {
     },
 
     removeCharacter(id) {
+        if (GameState.partyLocked) return; // cannot remove when locked
         if (GameState.party.length <= 1) return;
         GameState.party = GameState.party.filter(c => c.id !== id);
     },
@@ -830,6 +855,44 @@ const Game = {
         return { gold, kills };
     },
 
+    prestige() {
+        // Reset but keep prestige upgrades and AP
+        const savedAP = GameState.adventurePoints;
+        const savedUpgrades = { ...GameState.prestigeUpgrades };
+        const savedPrestigeCount = (GameState.prestigeCount || 0) + 1;
+        GameState.gold = 100;
+        GameState.adventurePoints = savedAP;
+        GameState.party = [];
+        GameState.partyLocked = false;
+        GameState.nodes = {};
+        NODE_DEFINITIONS.forEach((node, i) => {
+            GameState.nodes[node.id] = {
+                unlocked: i === 0,
+                castleBeaten: false,
+                dungeons: {}
+            };
+            node.dungeons.forEach(d => GameState.nodes[node.id].dungeons[d.id] = { owned: false, active: false });
+        });
+        GameState.inventory = [];
+        GameState.scrolls = SCROLLS.map(s => ({ ...s, count: 0 }));
+        GameState.potions = POTIONS.map(p => ({ ...p, count: 0 }));
+        GameState.totalKills = 0;
+        GameState.totalGoldEarned = 0;
+        GameState.castleBossesBeaten = 0;
+        GameState.totalSkillNodesUnlocked = 0;
+        GameState.itemsFound = 0;
+        GameState.currentDungeon = null;
+        GameState.activePotions = [];
+        GameState.prestigeCount = savedPrestigeCount;
+        GameState.prestigeUpgrades = savedUpgrades;
+        GameState.passiveGoldPerSec = 0;
+        GameState.passiveXpPerSec = 0;
+        GameState.passiveKillsPerSec = 0;
+        this.recalculatePassiveIncome();
+        this.saveGame();
+        UI.showCharModal(); // force new party selection
+    },
+
     saveGame() {
         GameState.lastSaveTime = Date.now();
         localStorage.setItem('dungeonInfinitum', JSON.stringify(GameState));
@@ -868,12 +931,18 @@ const Game = {
             UI.hideModal('char-modal');
             UI.renderAll();
         } catch (e) { alert('Invalid save'); }
+    },
+
+    deleteAllData() {
+        localStorage.removeItem('dungeonInfinitum');
+        location.reload();
     }
 };
 
 const UI = {
     activeTab: 'party',
     selectedChar: null,
+    selectedClasses: [], // for party creation
     fps: 0,
     lastFpsTime: 0,
     fpsFrames: 0,
@@ -901,7 +970,7 @@ const UI = {
     },
 
     renderTabs() {
-        const tabs = ['party', 'skills', 'equipment', 'pack', 'prestige', 'achievements'];
+        const tabs = ['party', 'skills', 'equipment', 'pack', 'prestige', 'achievements', 'settings'];
         const container = document.getElementById('tab-buttons');
         container.innerHTML = tabs.map(t => 
             `<button class="tab-btn ${this.activeTab === t ? 'active' : ''}" onclick="UI.setTab('${t}')">${
@@ -1118,6 +1187,7 @@ const UI = {
             case 'pack': container.innerHTML = this.renderPackTab(); break;
             case 'prestige': container.innerHTML = this.renderPrestigeTab(); break;
             case 'achievements': container.innerHTML = this.renderAchievementsTab(); break;
+            case 'settings': container.innerHTML = this.renderSettingsTab(); break;
         }
     },
 
@@ -1127,7 +1197,7 @@ const UI = {
         let html = `
             <div class="party-header">
                 <h3>Party (${GameState.party.length}/${maxParty})</h3>
-                <button class="add-btn" onclick="UI.showCharModal()" ${GameState.party.length >= maxParty ? 'disabled' : ''}>+ Add</button>
+                <button class="add-btn" onclick="UI.showCharModal()" ${GameState.partyLocked || GameState.party.length >= maxParty ? 'disabled' : ''}>+ Add</button>
             </div>
             <div class="party-list">
                 ${GameState.party.map(c => `
@@ -1137,7 +1207,7 @@ const UI = {
                             <span class="party-name">${c.name}</span>
                             <span class="party-level">Lv.${c.level}</span>
                         </div>
-                        ${GameState.party.length > 1 ? `<button class="remove-btn" onclick="event.stopPropagation(); Game.removeCharacter('${c.id}'); UI.renderAll();">×</button>` : ''}
+                        ${GameState.party.length > 1 && !GameState.partyLocked ? `<button class="remove-btn" onclick="event.stopPropagation(); Game.removeCharacter('${c.id}'); UI.renderAll();">×</button>` : ''}
                     </div>
                 `).join('')}
             </div>
@@ -1268,6 +1338,22 @@ const UI = {
         return html;
     },
 
+    renderSettingsTab() {
+        return `
+            <h3>Settings</h3>
+            <div class="section">
+                <button class="save-btn" style="width:100%; margin-bottom:0.5rem;" onclick="Game.saveGame()">💾 Save Game</button>
+                <button class="save-btn" style="width:100%; margin-bottom:0.5rem;" onclick="Game.exportSave()">📤 Export Save</button>
+                <button class="save-btn" style="width:100%; margin-bottom:0.5rem;" onclick="UI.showImportModal()">📥 Import Save</button>
+                <button class="save-btn" style="width:100%; background:#ef4444;" onclick="UI.showDeleteModal()">🗑️ Delete All Data</button>
+            </div>
+            <div class="stat">
+                <span class="statLabel">Last Saved:</span>
+                <span class="statValue" id="lastSaved">${GameState.lastSaveTime ? new Date(GameState.lastSaveTime).toLocaleString() : 'Never'}</span>
+            </div>
+        `;
+    },
+
     selectChar(id) {
         this.selectedChar = this.selectedChar === id ? null : id;
         this.renderAll();
@@ -1276,16 +1362,42 @@ const UI = {
     showCharModal() {
         const modal = document.getElementById('char-modal');
         const list = document.getElementById('class-list');
-        const maxParty = 4 + (GameState.prestigeUpgrades.extra_slot || 0);
+        this.selectedClasses = [];
         list.innerHTML = Object.entries(CLASS_DEFINITIONS).map(([key, def]) => `
-            <button class="class-btn" onclick="Game.addCharacter('${key}'); UI.hideModal('char-modal'); UI.renderAll();"
-                ${GameState.party.length >= maxParty ? 'disabled' : ''}>
+            <button class="class-btn" onclick="UI.toggleClassSelection('${key}')" id="btn-${key}">
                 <span class="class-sprite">${def.sprite}</span>
                 <span class="class-name">${def.name}</span>
                 <span class="class-role">${def.role}</span>
             </button>
         `).join('');
+        document.getElementById('selected-count').textContent = 'Selected: 0/4';
+        document.getElementById('start-game-btn').disabled = true;
         modal.classList.add('show');
+    },
+
+    toggleClassSelection(classKey) {
+        const btn = document.getElementById(`btn-${classKey}`);
+        const idx = this.selectedClasses.indexOf(classKey);
+        if (idx === -1) {
+            if (this.selectedClasses.length < 4) {
+                this.selectedClasses.push(classKey);
+                btn.style.background = '#22c55e';
+            }
+        } else {
+            this.selectedClasses.splice(idx, 1);
+            btn.style.background = '';
+        }
+        document.getElementById('selected-count').textContent = `Selected: ${this.selectedClasses.length}/4`;
+        document.getElementById('start-game-btn').disabled = this.selectedClasses.length !== 4;
+    },
+
+    showImportModal() {
+        document.getElementById('import-input').value = '';
+        document.getElementById('char-modal').classList.add('show');
+    },
+
+    showDeleteModal() {
+        document.getElementById('delete-modal').classList.add('show');
     },
 
     showExportModal(data) {
@@ -1298,9 +1410,13 @@ const UI = {
         document.getElementById(id).classList.remove('show');
     },
 
-    showOfflineBonus(gold, kills) {
-        const el = document.getElementById('offline-bonus');
-        if (el) el.innerHTML = `💰 While away: +${formatNumber(gold)} gold, +${formatNumber(kills)} kills!`;
+    showOfflineBanner(gold, kills) {
+        const banner = document.getElementById('offline-banner');
+        banner.textContent = `💰 While away: +${formatNumber(gold)} gold, +${kills} kills!`;
+        banner.style.display = 'block';
+        setTimeout(() => {
+            banner.style.display = 'none';
+        }, 5000);
     },
 
     updateFps(timestamp) {
