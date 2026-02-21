@@ -1,0 +1,3138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Idle Dungeon Crawler</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      min-height: 100vh;
+    }
+    
+    /* Header */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.5rem 1rem;
+      background: #1e293b;
+      border-bottom: 1px solid #334155;
+    }
+    .title { font-size: 1.5rem; font-weight: bold; }
+    .header-controls { display: flex; gap: 0.5rem; align-items: center; }
+    .fps { font-family: monospace; font-size: 0.875rem; color: #94a3b8; }
+    .btn {
+      padding: 0.5rem 1rem;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.875rem;
+      font-weight: bold;
+      color: white;
+    }
+    .btn-play { background: #22c55e; }
+    .btn-pause { background: #ef4444; }
+    .btn-small { padding: 0.25rem 0.5rem; font-size: 0.75rem; }
+    
+    /* Main Layout */
+    .main-content {
+      display: grid;
+      grid-template-columns: 280px 1fr 320px;
+      gap: 0.5rem;
+      padding: 0.5rem;
+      height: calc(100vh - 60px);
+    }
+    
+    /* Panels */
+    .panel {
+      background: #1e293b;
+      border-radius: 8px;
+      padding: 0.75rem;
+    }
+    .panel-title {
+      font-size: 1rem;
+      margin-bottom: 0.5rem;
+      padding-bottom: 0.25rem;
+      border-bottom: 1px solid #334155;
+    }
+    .left-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      overflow-y: auto;
+    }
+    .right-panel {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    
+    /* Resources */
+    .resource-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.25rem 0;
+      font-size: 0.875rem;
+    }
+    .resource-value { font-family: monospace; font-weight: bold; }
+    .bonus { font-size: 0.75rem; color: #22c55e; }
+    
+    /* Passive Stats */
+    .passive-stats {
+      background: #1e293b;
+      border-radius: 8px;
+      padding: 0.75rem;
+      margin-bottom: 0.5rem;
+    }
+    .passive-title { font-size: 0.875rem; font-weight: bold; margin-bottom: 0.5rem; }
+    .passive-item {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.75rem;
+      padding: 0.125rem 0;
+    }
+    
+    /* Castle Panel */
+    .castle-panel {
+      background: #2d1f3d;
+      border-radius: 8px;
+      padding: 0.75rem;
+      margin-bottom: 0.5rem;
+    }
+    .castle-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.5rem;
+    }
+    .castle-name { font-size: 1rem; font-weight: bold; color: #a855f7; }
+    .castle-status { font-size: 0.75rem; padding: 0.125rem 0.5rem; border-radius: 4px; }
+    .castle-status.locked { background: #374151; color: #94a3b8; }
+    .castle-status.available { background: #22c55e33; color: #22c55e; }
+    .castle-status.completed { background: #3b82f633; color: #3b82f6; }
+    .castle-boss {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem;
+      background: #1e293b;
+      border-radius: 6px;
+      margin-bottom: 0.5rem;
+    }
+    .boss-sprite { font-size: 2rem; }
+    .boss-info { flex: 1; }
+    .boss-name { font-weight: bold; }
+    .boss-stats { font-size: 0.75rem; color: #94a3b8; }
+    .castle-btn {
+      width: 100%;
+      padding: 0.5rem;
+      background: #8b5cf6;
+      border: none;
+      border-radius: 4px;
+      color: white;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    .castle-btn:disabled { opacity: 0.5; cursor: not-allowed; background: #374151; }
+    
+    /* Farm Panel */
+    .farm-panel {
+      background: #1e3a1e;
+      border-radius: 8px;
+      padding: 0.75rem;
+      margin-bottom: 0.5rem;
+    }
+    .farm-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.5rem;
+    }
+    .farm-title { font-size: 0.875rem; font-weight: bold; color: #22c55e; }
+    .farm-list { display: flex; flex-direction: column; gap: 0.5rem; }
+    .farm-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem;
+      background: #0f172a;
+      border-radius: 6px;
+    }
+    .farm-icon { font-size: 1.25rem; }
+    .farm-info { flex: 1; }
+    .farm-name { font-size: 0.75rem; font-weight: bold; }
+    .farm-stats { font-size: 0.625rem; color: #94a3b8; }
+    .farm-btn {
+      padding: 0.25rem 0.5rem;
+      background: #22c55e;
+      border: none;
+      border-radius: 4px;
+      color: black;
+      cursor: pointer;
+      font-size: 0.625rem;
+      font-weight: bold;
+    }
+    .farm-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .farm-btn.deactivate { background: #ef4444; color: white; }
+    
+    /* Game View */
+    .game-view {
+      background: #1e293b;
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .dungeon-header {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.5rem;
+      background: #374151;
+      border-radius: 6px;
+      margin: 0.5rem;
+    }
+    .combat-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      padding: 0.5rem;
+    }
+    .combat-title { font-size: 0.875rem; color: #94a3b8; margin-bottom: 0.5rem; }
+    .enemy-grid, .party-grid { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    .vs-divider { text-align: center; padding: 0.5rem; color: #fbbf24; font-size: 1.25rem; }
+    
+    /* Character Cards */
+    .char-card {
+      background: #1e3a5f;
+      border-radius: 8px;
+      padding: 0.5rem;
+      min-width: 140px;
+      flex: 1;
+      transition: opacity 0.3s;
+    }
+    .char-card.enemy { background: #7f1d1d; }
+    .char-card.boss { background: #4c1d6b; border: 2px solid #a855f7; }
+    .char-card.stunned { opacity: 0.5; }
+    .char-header { display: flex; align-items: center; gap: 0.25rem; margin-bottom: 0.25rem; }
+    .char-sprite { font-size: 1.25rem; }
+    .char-name { font-weight: bold; font-size: 0.75rem; }
+    .hp-bar {
+      background: #374151;
+      border-radius: 4px;
+      height: 16px;
+      position: relative;
+      overflow: hidden;
+    }
+    .hp-fill {
+      background: #22c55e;
+      height: 100%;
+      transition: width 0.3s;
+    }
+    .hp-fill.boss { background: #a855f7; }
+    .hp-text {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 0.625rem;
+      font-weight: bold;
+    }
+    .char-stats {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      font-size: 0.625rem;
+      gap: 0.125rem;
+      margin-top: 0.25rem;
+      color: #94a3b8;
+    }
+    .stunned-badge {
+      background: #ef4444;
+      padding: 0.125rem 0.25rem;
+      border-radius: 4px;
+      font-size: 0.625rem;
+      text-align: center;
+      margin-top: 0.25rem;
+    }
+    
+    /* Combat Log */
+    .combat-log {
+      background: #0f172a;
+      border-radius: 6px;
+      padding: 0.5rem;
+      height: 80px;
+      overflow-y: auto;
+      font-size: 0.75rem;
+      margin: 0.5rem;
+    }
+    .log-entry { padding: 0.125rem 0; border-bottom: 1px solid #1e293b; }
+    .log-special { color: #a855f7; font-weight: bold; }
+    
+    /* No Dungeon */
+    .no-dungeon {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      color: #64748b;
+    }
+    .offline-bonus {
+      background: #1e3a1e;
+      padding: 1rem;
+      border-radius: 8px;
+      margin-top: 1rem;
+      color: #22c55e;
+    }
+    
+    /* Tabs */
+    .tab-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.125rem;
+      padding: 0.25rem;
+      background: #0f172a;
+    }
+    .tab-btn {
+      flex: 1;
+      padding: 0.375rem 0.25rem;
+      font-size: 0.625rem;
+      border: none;
+      border-radius: 4px;
+      color: white;
+      cursor: pointer;
+      background: #374151;
+    }
+    .tab-btn.active { background: #3b82f6; }
+    .tab-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0.5rem;
+    }
+    
+    /* Party Tab */
+    .party-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
+    .add-btn {
+      padding: 0.25rem 0.5rem;
+      background: #22c55e;
+      border: none;
+      border-radius: 4px;
+      color: black;
+      cursor: pointer;
+      font-size: 0.75rem;
+      font-weight: bold;
+    }
+    .party-list { display: flex; flex-direction: column; gap: 0.25rem; }
+    .party-member {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem;
+      border-radius: 6px;
+      cursor: pointer;
+      background: #1f2937;
+    }
+    .party-member.selected { background: #3b82f6; }
+    .party-sprite { font-size: 1.5rem; }
+    .party-info { flex: 1; }
+    .party-name { font-weight: bold; font-size: 0.875rem; }
+    .party-level { font-size: 0.75rem; color: #94a3b8; }
+    .remove-btn {
+      background: #ef4444;
+      border: none;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      color: white;
+      cursor: pointer;
+      font-size: 0.875rem;
+    }
+    
+    /* Character Details */
+    .char-details {
+      background: #0f172a;
+      border-radius: 6px;
+      padding: 0.5rem;
+      margin-top: 0.5rem;
+    }
+    .xp-bar {
+      background: #374151;
+      border-radius: 4px;
+      height: 16px;
+      position: relative;
+      margin-bottom: 0.25rem;
+    }
+    .xp-fill { background: #8b5cf6; height: 100%; }
+    .skill-points { font-size: 0.75rem; color: #fbbf24; margin-bottom: 0.5rem; }
+    
+    /* ============================================================ */
+    /* SKILL TREE STYLES */
+    /* ============================================================ */
+    .skill-tree-container {
+      background: #0f172a;
+      border-radius: 8px;
+      padding: 0.5rem;
+      overflow-x: auto;
+    }
+    
+    .skill-tree-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.5rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid #334155;
+    }
+    
+    .skill-tree-title {
+      font-size: 0.875rem;
+      font-weight: bold;
+    }
+    
+    .skill-points-display {
+      background: #fbbf24;
+      color: black;
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: bold;
+    }
+    
+    .skill-tree-branches {
+      display: flex;
+      gap: 1rem;
+      min-width: max-content;
+    }
+    
+    .skill-branch {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-width: 100px;
+    }
+    
+    .branch-title {
+      font-size: 0.75rem;
+      font-weight: bold;
+      margin-bottom: 0.5rem;
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+      text-align: center;
+    }
+    
+    .branch-offense .branch-title { background: #ef4444; }
+    .branch-defense .branch-title { background: #3b82f6; }
+    .branch-utility .branch-title { background: #22c55e; }
+    .branch-ultimate .branch-title { background: #a855f7; }
+    
+    .skill-nodes {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.25rem;
+    }
+    
+    .skill-node {
+      width: 70px;
+      height: 70px;
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      position: relative;
+      transition: all 0.2s;
+      border: 2px solid transparent;
+    }
+    
+    .skill-node.locked {
+      background: #1f2937;
+      border-color: #374151;
+      cursor: not-allowed;
+      opacity: 0.5;
+    }
+    
+    .skill-node.available {
+      background: #374151;
+      border-color: #fbbf24;
+    }
+    
+    .skill-node.available:hover {
+      background: #4b5563;
+      transform: scale(1.05);
+    }
+    
+    .skill-node.unlocked {
+      background: #1e3a1e;
+      border-color: #22c55e;
+    }
+    
+    .skill-node-icon {
+      font-size: 1.25rem;
+    }
+    
+    .skill-node-name {
+      font-size: 0.5rem;
+      text-align: center;
+      margin-top: 0.125rem;
+    }
+    
+    .skill-node-level {
+      font-size: 0.5rem;
+      color: #94a3b8;
+    }
+    
+    .skill-node-cost {
+      position: absolute;
+      top: -8px;
+      right: -8px;
+      background: #fbbf24;
+      color: black;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      font-size: 0.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+    }
+    
+    .skill-connector {
+      width: 2px;
+      height: 15px;
+      background: #374151;
+    }
+    
+    .skill-connector.active {
+      background: #22c55e;
+    }
+    
+    /* Skill Tooltip */
+    .skill-tooltip {
+      position: fixed;
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 0.75rem;
+      max-width: 250px;
+      z-index: 1000;
+      pointer-events: none;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    }
+    
+    .tooltip-name {
+      font-weight: bold;
+      margin-bottom: 0.25rem;
+    }
+    
+    .tooltip-name.offense { color: #ef4444; }
+    .tooltip-name.defense { color: #3b82f6; }
+    .tooltip-name.utility { color: #22c55e; }
+    .tooltip-name.ultimate { color: #a855f7; }
+    
+    .tooltip-desc {
+      font-size: 0.75rem;
+      color: #94a3b8;
+      margin-bottom: 0.5rem;
+    }
+    
+    .tooltip-stats {
+      font-size: 0.75rem;
+      margin-bottom: 0.25rem;
+    }
+    
+    .tooltip-stat {
+      color: #22c55e;
+    }
+    
+    .tooltip-req {
+      font-size: 0.625rem;
+      color: #ef4444;
+      margin-top: 0.25rem;
+    }
+    
+    .tooltip-cost {
+      font-size: 0.75rem;
+      color: #fbbf24;
+      margin-top: 0.25rem;
+    }
+    
+    /* ============================================================ */
+    /* EQUIPMENT */
+    /* ============================================================ */
+    .equipment-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.25rem;
+      margin-bottom: 0.5rem;
+    }
+    .equipment-slot { background: #0f172a; padding: 0.25rem; border-radius: 4px; }
+    .slot-label { font-size: 0.625rem; color: #94a3b8; text-transform: uppercase; }
+    .equipped-item { border: 1px solid; border-radius: 4px; padding: 0.25rem; margin-top: 0.125rem; }
+    .empty-slot { color: #4b5563; font-size: 0.75rem; }
+    .item-name { font-size: 0.75rem; font-weight: bold; }
+    .item-stats { font-size: 0.625rem; color: #94a3b8; }
+    .item-actions { display: flex; gap: 0.25rem; margin-top: 0.25rem; }
+    .equip-btn, .sell-btn {
+      flex: 1;
+      padding: 0.125rem;
+      border: none;
+      border-radius: 4px;
+      font-size: 0.625rem;
+      cursor: pointer;
+    }
+    .equip-btn { background: #3b82f6; color: white; }
+    .sell-btn { background: #6b7280; color: white; }
+    
+    .inventory-grid { display: flex; flex-direction: column; gap: 0.25rem; max-height: 150px; overflow-y: auto; }
+    .inventory-item { background: #0f172a; border: 1px solid; border-radius: 4px; padding: 0.25rem; }
+    
+    /* Consumables */
+    .consumable-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #0f172a;
+      padding: 0.25rem;
+      border-radius: 4px;
+      margin-bottom: 0.25rem;
+    }
+    .consumable-name { font-size: 0.75rem; font-weight: bold; }
+    .consumable-desc { font-size: 0.625rem; color: #94a3b8; }
+    .use-btn {
+      padding: 0.25rem 0.5rem;
+      background: #8b5cf6;
+      border: none;
+      border-radius: 4px;
+      color: white;
+      cursor: pointer;
+      font-size: 0.75rem;
+    }
+    
+    /* Prestige */
+    .ap-display {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.5rem;
+      background: #0f172a;
+      border-radius: 6px;
+      margin-bottom: 0.5rem;
+    }
+    .prestige-upgrade {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #0f172a;
+      padding: 0.5rem;
+      border-radius: 6px;
+      margin-bottom: 0.5rem;
+    }
+    .prestige-btn {
+      width: 100%;
+      padding: 0.75rem;
+      background: #8b5cf6;
+      border: none;
+      border-radius: 6px;
+      color: white;
+      font-size: 1rem;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .prestige-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .prestige-warning { font-size: 0.75rem; color: #ef4444; text-align: center; margin-top: 0.5rem; }
+    
+    /* Achievements */
+    .achievement-item { padding: 0.5rem; border-radius: 6px; margin-bottom: 0.5rem; background: #1f2937; }
+    .achievement-item.completed { background: #1e3a1e; }
+    .achievement-name { font-weight: bold; font-size: 0.875rem; }
+    .achievement-desc { font-size: 0.75rem; color: #94a3b8; }
+    .achievement-progress { display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; }
+    .progress-bar { flex: 1; height: 8px; background: #374151; border-radius: 4px; overflow: hidden; }
+    .progress-fill { height: 100%; background: #22c55e; }
+    .ap-reward { color: #fbbf24; font-weight: bold; }
+    
+    /* Save Panel */
+    .save-panel { display: flex; gap: 0.25rem; padding: 0.5rem; background: #0f172a; }
+    .save-btn {
+      flex: 1;
+      padding: 0.375rem;
+      background: #374151;
+      border: none;
+      border-radius: 4px;
+      color: white;
+      cursor: pointer;
+      font-size: 0.75rem;
+    }
+    
+    /* Modal */
+    .modal {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.8);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    .modal.show { display: flex; }
+    .modal-content {
+      background: #1e293b;
+      border-radius: 8px;
+      padding: 1rem;
+      max-width: 500px;
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+    .class-list {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.5rem;
+      margin: 1rem 0;
+    }
+    .class-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 0.75rem;
+      background: #374151;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    .class-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .class-sprite { font-size: 2rem; }
+    .class-name { font-weight: bold; color: white; }
+    .class-role { font-size: 0.75rem; color: #94a3b8; }
+    .import-section { margin-top: 1rem; border-top: 1px solid #334155; padding-top: 1rem; }
+    .import-input {
+      width: 100%;
+      height: 80px;
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 4px;
+      color: white;
+      padding: 0.5rem;
+      margin-bottom: 0.5rem;
+      font-size: 0.75rem;
+    }
+    .import-btn, .close-btn {
+      width: 100%;
+      padding: 0.5rem;
+      background: #22c55e;
+      border: none;
+      border-radius: 4px;
+      color: black;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .close-btn { background: #6b7280; color: white; margin-top: 1rem; }
+    .export-area {
+      width: 100%;
+      height: 100px;
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 4px;
+      color: white;
+      padding: 0.5rem;
+      margin: 1rem 0;
+      font-size: 0.625rem;
+    }
+    
+    /* Active Potions */
+    .active-section { background: #1e3a1e; border-radius: 6px; padding: 0.5rem; margin-bottom: 0.5rem; }
+    .active-potion { font-size: 0.75rem; color: #22c55e; }
+    
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: #1e293b; }
+    ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+    
+    /* RARITY COLORS */
+    .rarity-common { color: #9ca3af; }
+    .rarity-uncommon { color: #22c55e; }
+    .rarity-rare { color: #3b82f6; }
+    .rarity-epic { color: #a855f7; }
+    .rarity-legendary { color: #f59e0b; }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <header class="header">
+    <h1 class="title">⚔️ Idle Dungeon Crawler</h1>
+    <div class="header-controls">
+      <span class="fps" id="fps-display"></span>
+      <button class="btn btn-small" id="fps-toggle">Show FPS</button>
+      <button class="btn btn-play" id="pause-btn">▶ Play</button>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <div class="main-content">
+    <!-- Left Panel -->
+    <aside class="left-panel">
+      <div class="panel">
+        <h2 class="panel-title">💰 Resources</h2>
+        <div id="resources"></div>
+      </div>
+      
+      <div class="passive-stats">
+        <div class="passive-title">📊 Passive Income</div>
+        <div id="passive-stats"></div>
+      </div>
+      
+      <div id="node-panel"></div>
+      <div id="farm-panel"></div>
+    </aside>
+
+    <!-- Game View -->
+    <main class="game-view" id="game-view">
+      <div class="no-dungeon" id="no-dungeon">
+        <h2>Select a Battle</h2>
+        <p>Choose a castle boss or dungeon to fight!</p>
+        <div class="offline-bonus" id="offline-bonus" style="display: none;"></div>
+      </div>
+      <div id="dungeon-view" style="display: none; flex-direction: column;">
+        <div class="dungeon-header" id="dungeon-header"></div>
+        <div class="combat-area">
+          <div>
+            <h3 class="combat-title">Enemies</h3>
+            <div class="enemy-grid" id="enemies"></div>
+          </div>
+          <div class="vs-divider">⚔️ VS ⚔️</div>
+          <div>
+            <h3 class="combat-title">Party</h3>
+            <div class="party-grid" id="combat-party"></div>
+          </div>
+        </div>
+        <div class="combat-log" id="combat-log"></div>
+      </div>
+    </main>
+
+    <!-- Right Panel -->
+    <aside class="right-panel">
+      <div class="tab-buttons" id="tab-buttons"></div>
+      <div class="tab-content" id="tab-content"></div>
+      <div class="save-panel">
+        <button class="save-btn" onclick="Game.saveGame()">💾 Save</button>
+        <button class="save-btn" onclick="Game.exportSave()">📤 Export</button>
+        <button class="save-btn" onclick="UI.showImportModal()">📥 Import</button>
+      </div>
+    </aside>
+  </div>
+
+  <!-- New Character Modal -->
+  <div class="modal" id="char-modal">
+    <div class="modal-content">
+      <h2>Add New Character</h2>
+      <div class="class-list" id="class-list"></div>
+      <div class="import-section">
+        <h3>Or Import Save</h3>
+        <textarea class="import-input" id="import-input" placeholder="Paste save data here..."></textarea>
+        <button class="import-btn" onclick="Game.importSave()">Import</button>
+      </div>
+      <button class="close-btn" onclick="UI.hideModal('char-modal')">Close</button>
+    </div>
+  </div>
+
+  <!-- Export Modal -->
+  <div class="modal" id="export-modal">
+    <div class="modal-content">
+      <h2>Save Data</h2>
+      <p id="export-msg">Save copied to clipboard!</p>
+      <textarea class="export-area" id="export-area" readonly></textarea>
+      <button class="close-btn" onclick="UI.hideModal('export-modal')">Close</button>
+    </div>
+  </div>
+  
+  <!-- Skill Tooltip -->
+  <div class="skill-tooltip" id="skill-tooltip" style="display: none;"></div>
+
+  <script>
+// ============================================================
+// CONSTANTS
+// ============================================================
+const TURN_INTERVAL = 250;
+const XP_BASE = 100;
+const XP_MULTIPLIER = 1.5;
+const MIN_DAMAGE = 1;
+const MAX_OFFLINE_HOURS = 12;
+const PASSIVE_TICK_INTERVAL = 1000;
+
+const RARITY_COLORS = {
+  common: '#9ca3af', uncommon: '#22c55e', rare: '#3b82f6', epic: '#a855f7', legendary: '#f59e0b'
+};
+
+const ITEM_RARITY_WEIGHTS = { common: 50, uncommon: 30, rare: 15, epic: 4, legendary: 1 };
+const ITEM_STAT_RANGES = {
+  common: { min: 1, max: 2 }, uncommon: { min: 2, max: 4 }, rare: { min: 4, max: 7 },
+  epic: { min: 7, max: 12 }, legendary: { min: 12, max: 20 }
+};
+
+// ============================================================
+// CLASS DEFINITIONS WITH SKILL TREES
+// ============================================================
+const CLASS_DEFINITIONS = {
+  fighter: {
+    name: 'Fighter', role: 'Tank', sprite: '🛡️',
+    baseStats: { dmg: 5, atk: 10, arm: 8, def: 12, hp: 120, sp: 0 },
+    skillTree: {
+      // OFFENSE BRANCH (Left)
+      offense: {
+        name: 'Offense', icon: '⚔️',
+        nodes: [
+          { id: 'sword_mastery', name: 'Sword Mastery', icon: '🗡️', cost: 1, 
+            desc: 'Increase base damage', statBuffs: { dmg: 3 }, 
+            requires: [], requiresLevel: 1 },
+          { id: 'power_strike', name: 'Power Strike', icon: '💥', cost: 2, 
+            desc: 'Deal 150% damage on attack', statBuffs: { dmg: 5 },
+            requires: ['sword_mastery'], requiresLevel: 3 },
+          { id: 'berserker_rage', name: 'Berserker Rage', icon: '😤', cost: 3, 
+            desc: '+25% damage when below 50% HP', statBuffs: { dmg: 8, atk: 5 },
+            requires: ['power_strike'], requiresLevel: 5 },
+          { id: 'cleave', name: 'Cleave', icon: '🔄', cost: 4, 
+            desc: 'Attacks hit all enemies', statBuffs: { dmg: 12 },
+            requires: ['berserker_rage'], requiresLevel: 10 },
+        ]
+      },
+      // DEFENSE BRANCH (Center)
+      defense: {
+        name: 'Defense', icon: '🛡️',
+        nodes: [
+          { id: 'shield_mastery', name: 'Shield Mastery', icon: '🛡️', cost: 1, 
+            desc: 'Increase armor', statBuffs: { arm: 4, def: 3 },
+            requires: [], requiresLevel: 1 },
+          { id: 'iron_wall', name: 'Iron Wall', icon: '🏰', cost: 2, 
+            desc: 'Reduce damage taken by 15%', statBuffs: { arm: 6, hp: 20 },
+            requires: ['shield_mastery'], requiresLevel: 3 },
+          { id: 'fortify', name: 'Fortify', icon: '💪', cost: 3, 
+            desc: 'Active: 50% damage reduction', statBuffs: { arm: 10, def: 8 },
+            requires: ['iron_wall'], requiresLevel: 5 },
+          { id: 'last_stand', name: 'Last Stand', icon: '⚡', cost: 4, 
+            desc: 'Survive fatal blow once per battle', statBuffs: { hp: 50, arm: 15 },
+            requires: ['fortify'], requiresLevel: 10 },
+        ]
+      },
+      // UTILITY BRANCH (Right)
+      utility: {
+        name: 'Utility', icon: '⚡',
+        nodes: [
+          { id: 'taunt', name: 'Taunt', icon: '📢', cost: 1, 
+            desc: 'Force enemies to attack you', statBuffs: { def: 3 },
+            requires: [], requiresLevel: 1 },
+          { id: 'provoke', name: 'Provoke', icon: '😠', cost: 2, 
+            desc: 'Taunt lasts 2 extra turns', statBuffs: { hp: 15, def: 5 },
+            requires: ['taunt'], requiresLevel: 3 },
+          { id: 'counter_stance', name: 'Counter Stance', icon: '↩️', cost: 3, 
+            desc: 'Counter attack when hit', statBuffs: { atk: 8, dmg: 5 },
+            requires: ['provoke'], requiresLevel: 5 },
+        ]
+      },
+      // ULTIMATE (Requires nodes from multiple branches)
+      ultimate: {
+        name: 'Ultimate', icon: '👑',
+        nodes: [
+          { id: 'champion', name: 'Champion', icon: '🏆', cost: 5, 
+            desc: 'Master of combat - massive all stats', statBuffs: { dmg: 15, arm: 15, hp: 50, atk: 10, def: 10 },
+            requires: ['cleave', 'last_stand'], requiresLevel: 15, requiresAny: ['counter_stance'] },
+        ]
+      }
+    }
+  },
+  
+  barbarian: {
+    name: 'Barbarian', role: 'Physical', sprite: '⚔️',
+    baseStats: { dmg: 10, atk: 12, arm: 5, def: 8, hp: 100, sp: 0 },
+    skillTree: {
+      offense: {
+        name: 'Fury', icon: '🔥',
+        nodes: [
+          { id: 'rage', name: 'Rage', icon: '😤', cost: 1, 
+            desc: 'Active: +50% damage for 3 turns', statBuffs: { dmg: 5 },
+            requires: [], requiresLevel: 1 },
+          { id: 'blood_frenzy', name: 'Blood Frenzy', icon: '🩸', cost: 2, 
+            desc: '+10% damage per kill in battle', statBuffs: { dmg: 8, atk: 5 },
+            requires: ['rage'], requiresLevel: 3 },
+          { id: 'execute', name: 'Execute', icon: '💀', cost: 3, 
+            desc: '200% damage to enemies below 30% HP', statBuffs: { dmg: 12, atk: 8 },
+            requires: ['blood_frenzy'], requiresLevel: 5 },
+          { id: 'whirlwind', name: 'Whirlwind', icon: '🌀', cost: 4, 
+            desc: 'Attack all enemies at once', statBuffs: { dmg: 18 },
+            requires: ['execute'], requiresLevel: 10 },
+        ]
+      },
+      defense: {
+        name: 'Survival', icon: '💚',
+        nodes: [
+          { id: 'tough_skin', name: 'Tough Skin', icon: '🦎', cost: 1, 
+            desc: 'Increase max HP', statBuffs: { hp: 25 },
+            requires: [], requiresLevel: 1 },
+          { id: 'regeneration', name: 'Regeneration', icon: '❤️', cost: 2, 
+            desc: 'Heal 2% HP per turn', statBuffs: { hp: 35 },
+            requires: ['tough_skin'], requiresLevel: 3 },
+          { id: 'undying', name: 'Undying', icon: '💀', cost: 3, 
+            desc: 'Revive with 25% HP once', statBuffs: { hp: 50, arm: 5 },
+            requires: ['regeneration'], requiresLevel: 5 },
+        ]
+      },
+      utility: {
+        name: 'War Cry', icon: '📢',
+        nodes: [
+          { id: 'battle_cry', name: 'Battle Cry', icon: '📯', cost: 1, 
+            desc: 'Active: Boost party damage', statBuffs: { atk: 4 },
+            requires: [], requiresLevel: 1 },
+          { id: 'intimidate', name: 'Intimidate', icon: '😈', cost: 2, 
+            desc: 'Reduce enemy damage by 10%', statBuffs: { def: 5 },
+            requires: ['battle_cry'], requiresLevel: 3 },
+          { id: 'warcry_master', name: 'Warcry Master', icon: '🎵', cost: 3, 
+            desc: 'Battle cry affects all stats', statBuffs: { atk: 8, dmg: 5 },
+            requires: ['intimidate'], requiresLevel: 5 },
+        ]
+      },
+      ultimate: {
+        name: 'Ultimate', icon: '👑',
+        nodes: [
+          { id: 'berserker_lord', name: 'Berserker Lord', icon: '👹', cost: 5, 
+            desc: 'Unleash inner beast', statBuffs: { dmg: 25, hp: 60, atk: 15 },
+            requires: ['whirlwind', 'undying'], requiresLevel: 15, requiresAny: ['warcry_master'] },
+        ]
+      }
+    }
+  },
+  
+  rogue: {
+    name: 'Rogue', role: 'Utility', sprite: '🗡️',
+    baseStats: { dmg: 8, atk: 15, arm: 3, def: 10, hp: 70, sp: 0 },
+    skillTree: {
+      offense: {
+        name: 'Assassination', icon: '🗡️',
+        nodes: [
+          { id: 'backstab', name: 'Backstab', icon: '🔪', cost: 1, 
+            desc: '+25% damage on first attack', statBuffs: { dmg: 4 },
+            requires: [], requiresLevel: 1 },
+          { id: 'critical_strike', name: 'Critical Strike', icon: '💥', cost: 2, 
+            desc: '+15% crit chance', statBuffs: { dmg: 8, atk: 6 },
+            requires: ['backstab'], requiresLevel: 3 },
+          { id: 'assassinate', name: 'Assassinate', icon: '💀', cost: 3, 
+            desc: 'Instant kill below 10% HP', statBuffs: { dmg: 15, atk: 10 },
+            requires: ['critical_strike'], requiresLevel: 5 },
+          { id: 'shadow_dance', name: 'Shadow Dance', icon: '👤', cost: 4, 
+            desc: 'Dodge and counter attacks', statBuffs: { atk: 18, def: 10 },
+            requires: ['assassinate'], requiresLevel: 10 },
+        ]
+      },
+      defense: {
+        name: 'Evasion', icon: '💨',
+        nodes: [
+          { id: 'quick_reflexes', name: 'Quick Reflexes', icon: '⚡', cost: 1, 
+            desc: '+10% dodge chance', statBuffs: { def: 4 },
+            requires: [], requiresLevel: 1 },
+          { id: 'elusive', name: 'Elusive', icon: '🌀', cost: 2, 
+            desc: 'Dodge chance scales with speed', statBuffs: { def: 8, atk: 3 },
+            requires: ['quick_reflexes'], requiresLevel: 3 },
+          { id: 'smoke_bomb', name: 'Smoke Bomb', icon: '💨', cost: 3, 
+            desc: 'Active: Become untargetable', statBuffs: { def: 12 },
+            requires: ['elusive'], requiresLevel: 5 },
+        ]
+      },
+      utility: {
+        name: 'Thievery', icon: '💰',
+        nodes: [
+          { id: 'pickpocket', name: 'Pickpocket', icon: '🤏', cost: 1, 
+            desc: '+50% gold from kills', statBuffs: {},
+            requires: [], requiresLevel: 1 },
+          { id: 'treasure_hunter', name: 'Treasure Hunter', icon: '💎', cost: 2, 
+            desc: '+20% item drop rate', statBuffs: { atk: 3 },
+            requires: ['pickpocket'], requiresLevel: 3 },
+          { id: 'master_thief', name: 'Master Thief', icon: '🗝️', cost: 3, 
+            desc: 'Auto-collect all loot', statBuffs: { atk: 6 },
+            requires: ['treasure_hunter'], requiresLevel: 5 },
+        ]
+      },
+      ultimate: {
+        name: 'Ultimate', icon: '👑',
+        nodes: [
+          { id: 'phantom', name: 'Phantom', icon: '👻', cost: 5, 
+            desc: 'Become one with shadows', statBuffs: { dmg: 20, atk: 20, def: 15 },
+            requires: ['shadow_dance', 'smoke_bomb'], requiresLevel: 15, requiresAny: ['master_thief'] },
+        ]
+      }
+    }
+  },
+  
+  priest: {
+    name: 'Priest', role: 'Healer', sprite: '✝️',
+    baseStats: { dmg: 3, atk: 8, arm: 2, def: 6, hp: 60, sp: 0 },
+    skillTree: {
+      offense: {
+        name: 'Holy Magic', icon: '✨',
+        nodes: [
+          { id: 'smite', name: 'Smite', icon: '⚡', cost: 1, 
+            desc: 'Deal holy damage', statBuffs: { dmg: 4 },
+            requires: [], requiresLevel: 1 },
+          { id: 'divine_wrath', name: 'Divine Wrath', icon: '🔥', cost: 2, 
+            desc: 'AOE holy damage', statBuffs: { dmg: 8, atk: 5 },
+            requires: ['smite'], requiresLevel: 3 },
+          { id: 'exorcism', name: 'Exorcism', icon: '👻', cost: 3, 
+            desc: 'Double damage to undead', statBuffs: { dmg: 12, atk: 8 },
+            requires: ['divine_wrath'], requiresLevel: 5 },
+          { id: 'judgement', name: 'Judgement', icon: '⚖️', cost: 4, 
+            desc: 'Massive holy nuke', statBuffs: { dmg: 20, atk: 12 },
+            requires: ['exorcism'], requiresLevel: 10 },
+        ]
+      },
+      defense: {
+        name: 'Protection', icon: '🛡️',
+        nodes: [
+          { id: 'divine_shield', name: 'Divine Shield', icon: '🛡️', cost: 1, 
+            desc: 'Active: Shield ally', statBuffs: { def: 4, arm: 3 },
+            requires: [], requiresLevel: 1 },
+          { id: 'sanctuary', name: 'Sanctuary', icon: '🏛️', cost: 2, 
+            desc: 'Protect entire party', statBuffs: { def: 8, hp: 15 },
+            requires: ['divine_shield'], requiresLevel: 3 },
+          { id: 'divine_armor', name: 'Divine Armor', icon: '👼', cost: 3, 
+            desc: 'Permanent damage reduction', statBuffs: { arm: 12, def: 10, hp: 25 },
+            requires: ['sanctuary'], requiresLevel: 5 },
+        ]
+      },
+      utility: {
+        name: 'Healing', icon: '💚',
+        nodes: [
+          { id: 'heal', name: 'Heal', icon: '❤️', cost: 1, 
+            desc: 'Heal ally for 30% HP', statBuffs: {},
+            requires: [], requiresLevel: 1 },
+          { id: 'group_heal', name: 'Group Heal', icon: '💖', cost: 2, 
+            desc: 'Heal all party members', statBuffs: { hp: 20 },
+            requires: ['heal'], requiresLevel: 3 },
+          { id: 'resurrection', name: 'Resurrection', icon: '✝️', cost: 3, 
+            desc: 'Revive fallen ally', statBuffs: { hp: 30 },
+            requires: ['group_heal'], requiresLevel: 5 },
+        ]
+      },
+      ultimate: {
+        name: 'Ultimate', icon: '👑',
+        nodes: [
+          { id: 'divine_avatar', name: 'Divine Avatar', icon: '😇', cost: 5, 
+            desc: 'Become a divine being', statBuffs: { dmg: 15, hp: 50, def: 15 },
+            requires: ['judgement', 'divine_armor'], requiresLevel: 15, requiresAny: ['resurrection'] },
+        ]
+      }
+    }
+  },
+  
+  druid: {
+    name: 'Druid', role: 'Summoner', sprite: '🌿',
+    baseStats: { dmg: 5, atk: 10, arm: 4, def: 8, hp: 80, sp: 0 },
+    skillTree: {
+      offense: {
+        name: 'Nature Fury', icon: '🌿',
+        nodes: [
+          { id: 'thorn_whip', name: 'Thorn Whip', icon: '🌵', cost: 1, 
+            desc: 'Nature damage attack', statBuffs: { dmg: 4 },
+            requires: [], requiresLevel: 1 },
+          { id: 'entangle', name: 'Entangle', icon: '🌱', cost: 2, 
+            desc: 'Slow enemies', statBuffs: { dmg: 6, atk: 4 },
+            requires: ['thorn_whip'], requiresLevel: 3 },
+          { id: 'wild_growth', name: 'Wild Growth', icon: '🌳', cost: 3, 
+            desc: 'Damage over time', statBuffs: { dmg: 10, atk: 6 },
+            requires: ['entangle'], requiresLevel: 5 },
+          { id: 'natures_wrath', name: "Nature's Wrath", icon: '🌪️', cost: 4, 
+            desc: 'Devastating nature AOE', statBuffs: { dmg: 18, atk: 12 },
+            requires: ['wild_growth'], requiresLevel: 10 },
+        ]
+      },
+      defense: {
+        name: 'Wild Form', icon: '🐻',
+        nodes: [
+          { id: 'bear_form', name: 'Bear Form', icon: '🐻', cost: 1, 
+            desc: 'Transform into bear', statBuffs: { hp: 30, arm: 5 },
+            requires: [], requiresLevel: 1 },
+          { id: 'thick_hide', name: 'Thick Hide', icon: '🦏', cost: 2, 
+            desc: 'Increased armor', statBuffs: { arm: 10, hp: 20 },
+            requires: ['bear_form'], requiresLevel: 3 },
+          { id: 'ironfur', name: 'Ironfur', icon: '🛡️', cost: 3, 
+            desc: 'Massive armor boost', statBuffs: { arm: 15, def: 8, hp: 25 },
+            requires: ['thick_hide'], requiresLevel: 5 },
+        ]
+      },
+      utility: {
+        name: 'Summoning', icon: '🐺',
+        nodes: [
+          { id: 'summon_wolf', name: 'Summon Wolf', icon: '🐺', cost: 1, 
+            desc: 'Summon wolf companion', statBuffs: {},
+            requires: [], requiresLevel: 1 },
+          { id: 'summon_bear', name: 'Summon Bear', icon: '🐻', cost: 2, 
+            desc: 'Summon bear tank', statBuffs: { hp: 15 },
+            requires: ['summon_wolf'], requiresLevel: 3 },
+          { id: 'summon_army', name: 'Summon Army', icon: '🦋', cost: 3, 
+            desc: 'Multiple pets at once', statBuffs: { hp: 25, dmg: 8 },
+            requires: ['summon_bear'], requiresLevel: 5 },
+        ]
+      },
+      ultimate: {
+        name: 'Ultimate', icon: '👑',
+        nodes: [
+          { id: 'archdruid', name: 'Archdruid', icon: '🌿', cost: 5, 
+            desc: 'Master of nature', statBuffs: { dmg: 18, hp: 60, arm: 15, atk: 10 },
+            requires: ['natures_wrath', 'ironfur'], requiresLevel: 15, requiresAny: ['summon_army'] },
+        ]
+      }
+    }
+  },
+  
+  electromancer: {
+    name: 'Electromancer', role: 'Magic DPS', sprite: '⚡',
+    baseStats: { dmg: 15, atk: 18, arm: 1, def: 5, hp: 50, sp: 0 },
+    skillTree: {
+      offense: {
+        name: 'Lightning', icon: '⚡',
+        nodes: [
+          { id: 'lightning_bolt', name: 'Lightning Bolt', icon: '⚡', cost: 1, 
+            desc: '2x damage single target', statBuffs: { dmg: 6 },
+            requires: [], requiresLevel: 1 },
+          { id: 'chain_lightning', name: 'Chain Lightning', icon: '🔗', cost: 2, 
+            desc: 'Hit 3 enemies', statBuffs: { dmg: 10, atk: 6 },
+            requires: ['lightning_bolt'], requiresLevel: 3 },
+          { id: 'overload', name: 'Overload', icon: '💫', cost: 3, 
+            desc: '50% chance to cast twice', statBuffs: { dmg: 15, atk: 10 },
+            requires: ['chain_lightning'], requiresLevel: 5 },
+          { id: 'storm', name: 'Storm', icon: '🌪️', cost: 4, 
+            desc: 'Lightning storm hits all', statBuffs: { dmg: 25, atk: 15 },
+            requires: ['overload'], requiresLevel: 10 },
+        ]
+      },
+      defense: {
+        name: 'Static', icon: '🔋',
+        nodes: [
+          { id: 'static_armor', name: 'Static Armor', icon: '⚡', cost: 1, 
+            desc: 'Enemies take damage on hit', statBuffs: { arm: 3 },
+            requires: [], requiresLevel: 1 },
+          { id: 'lightning_shield', name: 'Lightning Shield', icon: '🛡️', cost: 2, 
+            desc: 'Active damage shield', statBuffs: { arm: 6, def: 4 },
+            requires: ['static_armor'], requiresLevel: 3 },
+          { id: 'thorns', name: 'Thorns', icon: '⚡', cost: 3, 
+            desc: 'Reflect 25% damage', statBuffs: { arm: 10, def: 8 },
+            requires: ['lightning_shield'], requiresLevel: 5 },
+        ]
+      },
+      utility: {
+        name: 'Speed', icon: '💨',
+        nodes: [
+          { id: 'quick_cast', name: 'Quick Cast', icon: '⏩', cost: 1, 
+            desc: 'Reduced cooldowns', statBuffs: { atk: 4 },
+            requires: [], requiresLevel: 1 },
+          { id: 'arcane_speed', name: 'Arcane Speed', icon: '🏃', cost: 2, 
+            desc: 'Faster attack rate', statBuffs: { atk: 8 },
+            requires: ['quick_cast'], requiresLevel: 3 },
+          { id: 'teleport', name: 'Teleport', icon: '✨', cost: 3, 
+            desc: 'Dodge and reposition', statBuffs: { atk: 12, def: 6 },
+            requires: ['arcane_speed'], requiresLevel: 5 },
+        ]
+      },
+      ultimate: {
+        name: 'Ultimate', icon: '👑',
+        nodes: [
+          { id: 'storm_lord', name: 'Storm Lord', icon: '🌩️', cost: 5, 
+            desc: 'Command the storms', statBuffs: { dmg: 30, atk: 20, def: 10 },
+            requires: ['storm', 'thorns'], requiresLevel: 15, requiresAny: ['teleport'] },
+        ]
+      }
+    }
+  },
+  
+  pyromancer: {
+    name: 'Pyromancer', role: 'Magic DPS', sprite: '🔥',
+    baseStats: { dmg: 14, atk: 16, arm: 1, def: 5, hp: 50, sp: 0 },
+    skillTree: {
+      offense: {
+        name: 'Fire', icon: '🔥',
+        nodes: [
+          { id: 'fireball', name: 'Fireball', icon: '🔥', cost: 1, 
+            desc: 'AOE fire damage', statBuffs: { dmg: 5 },
+            requires: [], requiresLevel: 1 },
+          { id: 'inferno', name: 'Inferno', icon: '🌋', cost: 2, 
+            desc: 'Bigger AOE more damage', statBuffs: { dmg: 10, atk: 5 },
+            requires: ['fireball'], requiresLevel: 3 },
+          { id: 'meteor', name: 'Meteor', icon: '☄️', cost: 3, 
+            desc: 'Massive single hit', statBuffs: { dmg: 18, atk: 10 },
+            requires: ['inferno'], requiresLevel: 5 },
+          { id: 'supernova', name: 'Supernova', icon: '💥', cost: 4, 
+            desc: 'Ultimate fire explosion', statBuffs: { dmg: 30, atk: 18 },
+            requires: ['meteor'], requiresLevel: 10 },
+        ]
+      },
+      defense: {
+        name: 'Burning', icon: '🥵',
+        nodes: [
+          { id: 'burn', name: 'Burn', icon: '🔥', cost: 1, 
+            desc: 'DOT on all attacks', statBuffs: { dmg: 4 },
+            requires: [], requiresLevel: 1 },
+          { id: 'ignite', name: 'Ignite', icon: '💨', cost: 2, 
+            desc: 'Burn spreads to others', statBuffs: { dmg: 8, atk: 4 },
+            requires: ['burn'], requiresLevel: 3 },
+          { id: 'eternal_flame', name: 'Eternal Flame', icon: '🔥', cost: 3, 
+            desc: 'Burn never ends', statBuffs: { dmg: 15, atk: 8 },
+            requires: ['ignite'], requiresLevel: 5 },
+        ]
+      },
+      utility: {
+        name: 'Phoenix', icon: '🦅',
+        nodes: [
+          { id: 'phoenix_flame', name: 'Phoenix Flame', icon: '🦅', cost: 1, 
+            desc: 'Heal while burning enemies', statBuffs: { hp: 10 },
+            requires: [], requiresLevel: 1 },
+          { id: 'rebirth', name: 'Rebirth', icon: '🔄', cost: 2, 
+            desc: 'Revive with 50% HP', statBuffs: { hp: 25 },
+            requires: ['phoenix_flame'], requiresLevel: 3 },
+          { id: 'phoenix_form', name: 'Phoenix Form', icon: '🔥', cost: 3, 
+            desc: 'Immune to death briefly', statBuffs: { hp: 40, dmg: 10 },
+            requires: ['rebirth'], requiresLevel: 5 },
+        ]
+      },
+      ultimate: {
+        name: 'Ultimate', icon: '👑',
+        nodes: [
+          { id: 'fire_lord', name: 'Fire Lord', icon: '🔥', cost: 5, 
+            desc: 'Master of flames', statBuffs: { dmg: 35, hp: 50, atk: 15 },
+            requires: ['supernova', 'eternal_flame'], requiresLevel: 15, requiresAny: ['phoenix_form'] },
+        ]
+      }
+    }
+  },
+  
+  archer: {
+    name: 'Archer', role: 'Physical DPS', sprite: '🏹',
+    baseStats: { dmg: 12, atk: 16, arm: 2, def: 8, hp: 70, sp: 0 },
+    skillTree: {
+      offense: {
+        name: 'Marksmanship', icon: '🎯',
+        nodes: [
+          { id: 'aimed_shot', name: 'Aimed Shot', icon: '🎯', cost: 1, 
+            desc: 'Increased accuracy', statBuffs: { atk: 5 },
+            requires: [], requiresLevel: 1 },
+          { id: 'precise_shot', name: 'Precise Shot', icon: '🎯', cost: 2, 
+            desc: '2.5x damage guaranteed hit', statBuffs: { dmg: 8, atk: 6 },
+            requires: ['aimed_shot'], requiresLevel: 3 },
+          { id: 'volley', name: 'Volley', icon: '🏹', cost: 3, 
+            desc: 'Rain arrows on all enemies', statBuffs: { dmg: 12, atk: 10 },
+            requires: ['precise_shot'], requiresLevel: 5 },
+          { id: 'snipe', name: 'Snipe', icon: '🎯', cost: 4, 
+            desc: 'One shot low HP enemies', statBuffs: { dmg: 22, atk: 15 },
+            requires: ['volley'], requiresLevel: 10 },
+        ]
+      },
+      defense: {
+        name: 'Evasion', icon: '💨',
+        nodes: [
+          { id: 'dodge', name: 'Dodge', icon: '💨', cost: 1, 
+            desc: 'Chance to dodge attacks', statBuffs: { def: 4 },
+            requires: [], requiresLevel: 1 },
+          { id: 'retreat', name: 'Retreat', icon: '🏃', cost: 2, 
+            desc: 'Dodge and reposition', statBuffs: { def: 8, atk: 3 },
+            requires: ['dodge'], requiresLevel: 3 },
+          { id: 'shadow_step', name: 'Shadow Step', icon: '👤', cost: 3, 
+            desc: 'Become untargetable', statBuffs: { def: 12, atk: 6 },
+            requires: ['retreat'], requiresLevel: 5 },
+        ]
+      },
+      utility: {
+        name: 'Traps', icon: '🪤',
+        nodes: [
+          { id: 'poison_arrow', name: 'Poison Arrow', icon: '☠️', cost: 1, 
+            desc: 'Poison DOT', statBuffs: { dmg: 4 },
+            requires: [], requiresLevel: 1 },
+          { id: 'explosive_arrow', name: 'Explosive Arrow', icon: '💥', cost: 2, 
+            desc: 'AOE explosion', statBuffs: { dmg: 10 },
+            requires: ['poison_arrow'], requiresLevel: 3 },
+          { id: 'hunting_trap', name: 'Hunting Trap', icon: '🪤', cost: 3, 
+            desc: 'Stun enemies', statBuffs: { dmg: 8, atk: 5 },
+            requires: ['explosive_arrow'], requiresLevel: 5 },
+        ]
+      },
+      ultimate: {
+        name: 'Ultimate', icon: '👑',
+        nodes: [
+          { id: 'sharpshooter', name: 'Sharpshooter', icon: '🏹', cost: 5, 
+            desc: 'Perfect aim every time', statBuffs: { dmg: 25, atk: 20, def: 10 },
+            requires: ['snipe', 'shadow_step'], requiresLevel: 15, requiresAny: ['hunting_trap'] },
+        ]
+      }
+    }
+  }
+};
+
+// Node definitions for progression
+const NODE_DEFINITIONS = [
+  {
+    id: 'goblin_territory',
+    name: 'Goblin Territory',
+    icon: '🏔️',
+    level: 1,
+    castle: {
+      name: "Goblin King's Lair",
+      boss: {
+        name: 'Goblin King',
+        sprite: '👑',
+        stats: { dmg: 8, atk: 15, arm: 5, def: 10, hp: 150 },
+        goldReward: 200,
+        xpReward: 100
+      }
+    },
+    dungeons: [
+      { id: 'goblin_cave', name: 'Goblin Cave', icon: '🕳️', level: 1, cost: 100, killRate: 0.5, goldPerKill: 5, xpPerKill: 10 },
+      { id: 'goblin_camp', name: 'Goblin Camp', icon: '⛺', level: 2, cost: 150, killRate: 0.4, goldPerKill: 8, xpPerKill: 15 }
+    ],
+    unlocks: ['wolf_forest']
+  },
+  {
+    id: 'wolf_forest',
+    name: 'Wolf Forest',
+    icon: '🌲',
+    level: 5,
+    castle: {
+      name: 'Wolf Den',
+      boss: {
+        name: 'Alpha Wolf',
+        sprite: '🐺',
+        stats: { dmg: 15, atk: 20, arm: 8, def: 12, hp: 250 },
+        goldReward: 500,
+        xpReward: 250
+      }
+    },
+    dungeons: [
+      { id: 'wolf_den', name: 'Wolf Den', icon: '🐺', level: 5, cost: 400, killRate: 0.4, goldPerKill: 12, xpPerKill: 25 },
+      { id: 'spider_nest', name: 'Spider Nest', icon: '🕷️', level: 7, cost: 600, killRate: 0.3, goldPerKill: 18, xpPerKill: 35 }
+    ],
+    unlocks: ['undead_crypts']
+  },
+  {
+    id: 'undead_crypts',
+    name: 'Undead Crypts',
+    icon: '💀',
+    level: 10,
+    castle: {
+      name: 'Lich Tower',
+      boss: {
+        name: 'Ancient Lich',
+        sprite: '💀',
+        stats: { dmg: 25, atk: 30, arm: 10, def: 25, hp: 400 },
+        goldReward: 1500,
+        xpReward: 600
+      }
+    },
+    dungeons: [
+      { id: 'skeleton_tombs', name: 'Skeleton Tombs', icon: '⚰️', level: 10, cost: 1200, killRate: 0.3, goldPerKill: 25, xpPerKill: 50 },
+      { id: 'zombie_pit', name: 'Zombie Pit', icon: '🧟', level: 12, cost: 1500, killRate: 0.25, goldPerKill: 35, xpPerKill: 70 },
+      { id: 'ghost_hall', name: 'Ghost Hall', icon: '👻', level: 14, cost: 2000, killRate: 0.2, goldPerKill: 50, xpPerKill: 90 }
+    ],
+    unlocks: ['orc_stronghold', 'demon_realm']
+  },
+  {
+    id: 'orc_stronghold',
+    name: 'Orc Stronghold',
+    icon: '🏰',
+    level: 15,
+    castle: {
+      name: "Orc Warlord's Fortress",
+      boss: {
+        name: 'Orc Warlord',
+        sprite: '👹',
+        stats: { dmg: 35, atk: 35, arm: 20, def: 20, hp: 600 },
+        goldReward: 4000,
+        xpReward: 1200
+      }
+    },
+    dungeons: [
+      { id: 'orc_barracks', name: 'Orc Barracks', icon: '⚔️', level: 15, cost: 3000, killRate: 0.25, goldPerKill: 50, xpPerKill: 100 },
+      { id: 'orc_armory', name: 'Orc Armory', icon: '🛡️', level: 18, cost: 4500, killRate: 0.2, goldPerKill: 75, xpPerKill: 140 }
+    ],
+    unlocks: ['dragon_peak']
+  },
+  {
+    id: 'demon_realm',
+    name: 'Demon Realm',
+    icon: '😈',
+    level: 18,
+    castle: {
+      name: 'Demon Portal',
+      boss: {
+        name: 'Arch Demon',
+        sprite: '😈',
+        stats: { dmg: 40, atk: 40, arm: 15, def: 30, hp: 700 },
+        goldReward: 6000,
+        xpReward: 1800
+      }
+    },
+    dungeons: [
+      { id: 'demon_pit', name: 'Demon Pit', icon: '🔥', level: 18, cost: 5000, killRate: 0.2, goldPerKill: 80, xpPerKill: 150 },
+      { id: 'hell_gate', name: 'Hell Gate', icon: '🚪', level: 22, cost: 8000, killRate: 0.15, goldPerKill: 120, xpPerKill: 200 }
+    ],
+    unlocks: ['dragon_peak']
+  },
+  {
+    id: 'dragon_peak',
+    name: 'Dragon Peak',
+    icon: '🐉',
+    level: 25,
+    castle: {
+      name: 'Dragon Lair',
+      boss: {
+        name: 'Ancient Dragon',
+        sprite: '🐉',
+        stats: { dmg: 60, atk: 50, arm: 30, def: 40, hp: 1200 },
+        goldReward: 20000,
+        xpReward: 5000
+      }
+    },
+    dungeons: [
+      { id: 'dragon_nest', name: 'Dragon Nest', icon: '🥚', level: 25, cost: 15000, killRate: 0.15, goldPerKill: 150, xpPerKill: 250 },
+      { id: 'treasure_vault', name: 'Treasure Vault', icon: '💎', level: 30, cost: 25000, killRate: 0.1, goldPerKill: 250, xpPerKill: 400 }
+    ],
+    unlocks: []
+  }
+];
+
+const ACHIEVEMENTS = [
+  { id: 'first_blood', name: 'First Blood', desc: 'Defeat your first enemy', req: 1, ap: 1 },
+  { id: 'monster_slayer', name: 'Monster Slayer', desc: 'Defeat 100 enemies', req: 100, ap: 5 },
+  { id: 'legendary_hunter', name: 'Legendary Hunter', desc: 'Defeat 1000 enemies', req: 1000, ap: 20 },
+  { id: 'gold_hoarder', name: 'Gold Hoarder', desc: 'Earn 10,000 gold total', req: 10000, ap: 3 },
+  { id: 'wealthy', name: 'Wealthy Adventurer', desc: 'Earn 100,000 gold total', req: 100000, ap: 10 },
+  { id: 'castle_conqueror', name: 'Castle Conqueror', desc: 'Beat 3 castle bosses', req: 3, ap: 15 },
+  { id: 'farm_master', name: 'Farm Master', desc: 'Own 5 farms', req: 5, ap: 10 },
+  { id: 'skill_master', name: 'Skill Master', desc: 'Unlock 20 skill nodes', req: 20, ap: 15 },
+  { id: 'first_prestige', name: 'New Beginning', desc: 'Prestige once', req: 1, ap: 25 },
+  { id: 'party_five', name: 'Party of Five', desc: 'Recruit 5 characters', req: 5, ap: 10 }
+];
+
+const PRESTIGE_UPGRADES = [
+  { id: 'extra_slot', name: 'Extra Character Slot', desc: '+1 party slot', cost: 10, maxLevel: 4 },
+  { id: 'cooldown_red', name: 'Swift Skills', desc: '-10% skill cooldowns', cost: 15, maxLevel: 5 },
+  { id: 'farm_speed', name: 'Efficient Farms', desc: '+20% farm kill rate', cost: 20, maxLevel: 5 },
+  { id: 'gold_bonus', name: 'Golden Touch', desc: '+10% gold earned', cost: 12, maxLevel: 5 },
+  { id: 'xp_bonus', name: 'Quick Learner', desc: '+10% XP gained', cost: 12, maxLevel: 5 },
+  { id: 'skill_cost', name: 'Natural Talent', desc: '-1 skill point cost (min 1)', cost: 25, maxLevel: 3 }
+];
+
+const MONSTER_TEMPLATES = {
+  goblin: { name: 'Goblin', sprite: '👺', stats: { dmg: 3, atk: 5, arm: 1, def: 3, hp: 20 } },
+  wolf: { name: 'Wolf', sprite: '🐺', stats: { dmg: 5, atk: 8, arm: 2, def: 5, hp: 35 } },
+  spider: { name: 'Spider', sprite: '🕷️', stats: { dmg: 7, atk: 10, arm: 2, def: 6, hp: 40 } },
+  skeleton: { name: 'Skeleton', sprite: '💀', stats: { dmg: 10, atk: 12, arm: 3, def: 8, hp: 50 } },
+  zombie: { name: 'Zombie', sprite: '🧟', stats: { dmg: 12, atk: 10, arm: 5, def: 6, hp: 80 } },
+  ghost: { name: 'Ghost', sprite: '👻', stats: { dmg: 15, atk: 15, arm: 0, def: 20, hp: 45 } },
+  orc: { name: 'Orc', sprite: '👹', stats: { dmg: 18, atk: 14, arm: 8, def: 10, hp: 100 } },
+  demon: { name: 'Demon', sprite: '😈', stats: { dmg: 25, atk: 22, arm: 10, def: 15, hp: 150 } },
+  dragon: { name: 'Dragon', sprite: '🐉', stats: { dmg: 30, atk: 25, arm: 15, def: 18, hp: 200 } }
+};
+
+const POTION_TYPES = {
+  double_gold: { name: 'Gold Elixir', desc: 'Double gold for 5 min', duration: 1200 },
+  treasure_room: { name: 'Treasure Map', desc: 'Instant loot drop', duration: 0 },
+  infinite_scrolls: { name: 'Scroll Saver', desc: 'Scrolls not consumed for 3 min', duration: 720 }
+};
+
+const SCROLL_TYPES = {
+  town_portal: { name: 'Town Portal', desc: 'Heal all party to full HP' },
+  identify: { name: 'Identify', desc: 'Reveal item properties' },
+  teleport: { name: 'Teleport', desc: 'Skip to next floor' }
+};
+
+const ITEM_TYPES = ['weapon', 'armor', 'helmet', 'boots', 'gloves', 'accessory'];
+const ITEM_PREFIXES = {
+  weapon: ['Rusty', 'Sharp', 'Ancient', 'Enchanted', 'Blessed', 'Legendary'],
+  armor: ['Sturdy', 'Reinforced', 'Ancient', 'Enchanted', 'Dragon-scale'],
+  helmet: ['Iron', 'Steel', 'Ancient', 'Enchanted', 'Royal'],
+  boots: ['Leather', 'Swift', 'Ancient', 'Enchanted', 'Windrunner'],
+  gloves: ['Leather', 'Chain', 'Ancient', 'Enchanted', "Thief's"],
+  accessory: ['Simple', 'Ornate', 'Ancient', 'Enchanted', 'Divine']
+};
+const ITEM_NAMES = {
+  weapon: ['Sword', 'Axe', 'Mace', 'Dagger', 'Staff', 'Spear'],
+  armor: ['Chestplate', 'Mail', 'Robe', 'Plate', 'Vestment'],
+  helmet: ['Helm', 'Cap', 'Hood', 'Crown', 'Circlet'],
+  boots: ['Boots', 'Greaves', 'Sandals', 'Treads', 'Striders'],
+  gloves: ['Gloves', 'Gauntlets', 'Bracers', 'Grips', 'Fists'],
+  accessory: ['Ring', 'Amulet', 'Pendant', 'Talisman', 'Charm']
+};
+
+// ============================================================
+// UTILITIES
+// ============================================================
+function generateId() {
+  return Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
+}
+
+function randomRange(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function randomPick(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function formatNumber(n) {
+  if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+  if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
+  return Math.floor(n).toString();
+}
+
+function doesAttackHit(atk, def) {
+  const chance = Math.min(0.95, Math.max(0.05, atk / (atk + def)));
+  return Math.random() < chance;
+}
+
+function calculateDamage(dmg, arm) {
+  return Math.max(MIN_DAMAGE, dmg - arm);
+}
+
+function xpForLevel(level) {
+  return Math.floor(XP_BASE * Math.pow(XP_MULTIPLIER, level - 1));
+}
+
+// ============================================================
+// GAME STATE
+// ============================================================
+const GameState = {
+  gold: 100,
+  adventurePoints: 0,
+  party: [],
+  nodes: {},
+  inventory: [],
+  potions: [],
+  scrolls: [],
+  achievements: {},
+  prestigeUpgrades: {},
+  prestigeCount: 0,
+  paused: true,
+  currentBattle: null,
+  combat: null,
+  lastSaveTime: Date.now(),
+  totalKills: 0,
+  totalGoldEarned: 0,
+  castleBossesBeaten: 0,
+  totalSkillNodesUnlocked: 0,
+  itemsFound: 0,
+  activePotions: [],
+  doubleGoldActive: false,
+  infiniteScrollsActive: false,
+  showFps: false,
+  dotEffects: [],
+  buffs: [],
+  tauntingId: null,
+  passiveGoldPerSec: 0,
+  passiveXpPerSec: 0,
+  passiveKillsPerSec: 0
+};
+
+// ============================================================
+// GAME LOGIC
+// ============================================================
+const Game = {
+  init() {
+    this.loadGame();
+    
+    NODE_DEFINITIONS.forEach((node, index) => {
+      if (!GameState.nodes[node.id]) {
+        GameState.nodes[node.id] = {
+          unlocked: index === 0,
+          castleBeaten: false,
+          dungeons: {}
+        };
+        node.dungeons.forEach(d => {
+          GameState.nodes[node.id].dungeons[d.id] = { owned: false, active: false };
+        });
+      }
+    });
+    
+    ACHIEVEMENTS.forEach(a => {
+      if (!GameState.achievements[a.id]) {
+        GameState.achievements[a.id] = { progress: 0, completed: false };
+      }
+    });
+    
+    PRESTIGE_UPGRADES.forEach(u => {
+      if (!GameState.prestigeUpgrades[u.id]) {
+        GameState.prestigeUpgrades[u.id] = 0;
+      }
+    });
+    
+    if (GameState.party.length === 0) {
+      this.addCharacter('fighter');
+    }
+    
+    const offline = this.calculateOffline();
+    if (offline.gold > 0) {
+      GameState.gold += offline.gold;
+      UI.showOfflineBonus(offline.gold, offline.kills);
+    }
+    
+    this.recalculatePassiveIncome();
+    this.saveGame();
+  },
+  
+  createCharacter(className) {
+    const def = CLASS_DEFINITIONS[className];
+    const char = {
+      id: generateId(),
+      name: def.name,
+      class: className,
+      level: 1,
+      xp: 0,
+      xpToLevel: xpForLevel(2),
+      currentHp: def.baseStats.hp,
+      maxHp: def.baseStats.hp,
+      baseStats: { ...def.baseStats },
+      equipment: {},
+      unlockedSkills: {}, // skillId -> level
+      skillPoints: 0,
+      stunned: 0,
+      sprite: def.sprite
+    };
+    
+    // Recalculate stats including skill buffs
+    this.recalculateCharacterStats(char);
+    return char;
+  },
+  
+  recalculateCharacterStats(char) {
+    const def = CLASS_DEFINITIONS[char.class];
+    const base = { ...def.baseStats };
+    
+    // Add level bonuses
+    const levelBonus = char.level - 1;
+    base.dmg += Math.floor(levelBonus * 0.5);
+    base.atk += Math.floor(levelBonus * 1);
+    base.arm += Math.floor(levelBonus * 0.3);
+    base.def += Math.floor(levelBonus * 0.5);
+    base.hp += Math.floor(levelBonus * 5);
+    
+    // Add equipment bonuses
+    Object.values(char.equipment).forEach(item => {
+      if (item) {
+        base.dmg += item.stats.dmg || 0;
+        base.atk += item.stats.atk || 0;
+        base.arm += item.stats.arm || 0;
+        base.def += item.stats.def || 0;
+        base.hp += item.stats.hp || 0;
+      }
+    });
+    
+    // Add skill tree bonuses
+    Object.entries(char.unlockedSkills || {}).forEach(([skillId, level]) => {
+      const allNodes = [
+        ...Object.values(def.skillTree.offense.nodes),
+        ...Object.values(def.skillTree.defense.nodes),
+        ...Object.values(def.skillTree.utility.nodes),
+        ...Object.values(def.skillTree.ultimate.nodes)
+      ];
+      const node = allNodes.find(n => n.id === skillId);
+      if (node && node.statBuffs) {
+        Object.entries(node.statBuffs).forEach(([stat, value]) => {
+          if (base[stat] !== undefined) {
+            base[stat] += value * level;
+          }
+        });
+      }
+    });
+    
+    char.baseStats = base;
+    char.maxHp = base.hp;
+  },
+  
+  getTotalStats(char) {
+    return char.baseStats;
+  },
+  
+  addCharacter(className) {
+    const maxParty = 4 + (GameState.prestigeUpgrades.extra_slot || 0);
+    if (GameState.party.length >= maxParty) return false;
+    const char = this.createCharacter(className);
+    GameState.party.push(char);
+    this.updateAchievement('party_five', GameState.party.length);
+    return true;
+  },
+  
+  removeCharacter(id) {
+    if (GameState.party.length <= 1) return;
+    GameState.party = GameState.party.filter(c => c.id !== id);
+  },
+  
+  // Skill Tree System
+  canUnlockSkillNode(char, nodeId) {
+    const def = CLASS_DEFINITIONS[char.class];
+    const allNodes = [
+      ...Object.values(def.skillTree.offense.nodes),
+      ...Object.values(def.skillTree.defense.nodes),
+      ...Object.values(def.skillTree.ultimate.nodes),
+      ...Object.values(def.skillTree.utility.nodes)
+    ];
+    
+    const node = allNodes.find(n => n.id === nodeId);
+    if (!node) return { canUnlock: false, reason: 'Node not found' };
+    
+    // Check if already unlocked
+    if (char.unlockedSkills[nodeId]) return { canUnlock: false, reason: 'Already unlocked' };
+    
+    // Check level requirement
+    if (char.level < node.requiresLevel) {
+      return { canUnlock: false, reason: `Requires level ${node.requiresLevel}` };
+    }
+    
+    // Check prerequisite skills
+    for (const reqId of (node.requires || [])) {
+      if (!char.unlockedSkills[reqId]) {
+        const reqNode = allNodes.find(n => n.id === reqId);
+        return { canUnlock: false, reason: `Requires ${reqNode?.name || reqId}` };
+      }
+    }
+    
+    // Check "requiresAny" (at least one must be unlocked)
+    if (node.requiresAny && node.requiresAny.length > 0) {
+      const hasAny = node.requiresAny.some(reqId => char.unlockedSkills[reqId]);
+      if (!hasAny) {
+        return { canUnlock: false, reason: `Requires one of: ${node.requiresAny.join(', ')}` };
+      }
+    }
+    
+    // Check skill points
+    const costReduction = GameState.prestigeUpgrades.skill_cost || 0;
+    const effectiveCost = Math.max(1, node.cost - costReduction);
+    if (char.skillPoints < effectiveCost) {
+      return { canUnlock: false, reason: `Need ${effectiveCost} skill points` };
+    }
+    
+    return { canUnlock: true, cost: effectiveCost };
+  },
+  
+  unlockSkillNode(charId, nodeId) {
+    const char = GameState.party.find(c => c.id === charId);
+    if (!char) return false;
+    
+    const result = this.canUnlockSkillNode(char, nodeId);
+    if (!result.canUnlock) return false;
+    
+    char.skillPoints -= result.cost;
+    char.unlockedSkills[nodeId] = 1;
+    
+    // Recalculate stats
+    this.recalculateCharacterStats(char);
+    
+    // Track for achievement
+    GameState.totalSkillNodesUnlocked++;
+    this.updateAchievement('skill_master', GameState.totalSkillNodesUnlocked);
+    
+    return true;
+  },
+  
+  generateItem(level) {
+    const roll = Math.random() * 100;
+    let cumulative = 0, rarity = 'common';
+    for (const [r, w] of Object.entries(ITEM_RARITY_WEIGHTS)) {
+      cumulative += w;
+      if (roll < cumulative) { rarity = r; break; }
+    }
+    
+    const type = randomPick(ITEM_TYPES);
+    const range = ITEM_STAT_RANGES[rarity];
+    const stats = {
+      dmg: type === 'weapon' ? randomRange(range.min, range.max) : 0,
+      atk: type === 'weapon' || type === 'accessory' ? randomRange(range.min, range.max) : 0,
+      arm: ['armor', 'helmet', 'boots', 'gloves'].includes(type) ? randomRange(range.min, range.max) : 0,
+      def: ['armor', 'helmet'].includes(type) ? randomRange(range.min, range.max) : 0,
+      hp: type !== 'weapon' ? randomRange(range.min * 3, range.max * 3) : 0,
+      sp: 0
+    };
+    
+    const mult = { common: 1, uncommon: 2, rare: 5, epic: 15, legendary: 50 };
+    const prefix = randomPick(ITEM_PREFIXES[type]);
+    const baseName = randomPick(ITEM_NAMES[type]);
+    
+    return {
+      id: generateId(),
+      name: `${prefix} ${baseName}`,
+      type,
+      rarity,
+      stats,
+      level,
+      value: Math.floor(level * 10 * mult[rarity])
+    };
+  },
+  
+  itemScore(item) {
+    return (item.stats.dmg || 0) * 2 + (item.stats.atk || 0) + 
+           (item.stats.arm || 0) * 1.5 + (item.stats.def || 0) + 
+           (item.stats.hp || 0) * 0.2;
+  },
+  
+  isItemBetter(newItem, current) {
+    if (!current) return true;
+    return this.itemScore(newItem) > this.itemScore(current);
+  },
+  
+  generateEnemy(nodeId, dungeonId) {
+    const node = NODE_DEFINITIONS.find(n => n.id === nodeId);
+    const dungeon = dungeonId ? node.dungeons.find(d => d.id === dungeonId) : null;
+    const level = dungeon ? dungeon.level : node.level;
+    
+    let template;
+    if (level <= 3) template = randomPick(['goblin', 'goblin', 'wolf']);
+    else if (level <= 7) template = randomPick(['wolf', 'spider', 'goblin']);
+    else if (level <= 12) template = randomPick(['spider', 'skeleton', 'zombie']);
+    else if (level <= 18) template = randomPick(['skeleton', 'zombie', 'ghost', 'orc']);
+    else template = randomPick(['orc', 'demon', 'dragon']);
+    
+    const t = MONSTER_TEMPLATES[template];
+    const mult = 1 + (level - 1) * 0.15;
+    
+    return {
+      id: generateId(),
+      name: `${t.name} Lv.${level}`,
+      class: 'enemy',
+      level,
+      currentHp: Math.floor(t.stats.hp * mult),
+      maxHp: Math.floor(t.stats.hp * mult),
+      totalStats: {
+        dmg: Math.floor(t.stats.dmg * mult),
+        atk: Math.floor(t.stats.atk * mult),
+        arm: Math.floor(t.stats.arm * mult),
+        def: Math.floor(t.stats.def * mult)
+      },
+      stunned: 0,
+      sprite: t.sprite,
+      goldDrop: [Math.floor(5 * level), Math.floor(15 * level)],
+      xpDrop: Math.floor(20 * level * mult),
+      itemDropChance: 0.2 + level * 0.01
+    };
+  },
+  
+  startCastleBattle(nodeId) {
+    const node = NODE_DEFINITIONS.find(n => n.id === nodeId);
+    const nodeState = GameState.nodes[nodeId];
+    if (!nodeState.unlocked || nodeState.castleBeaten) return;
+    
+    const boss = node.castle.boss;
+    GameState.currentBattle = { type: 'castle', nodeId };
+    GameState.combat = {
+      party: GameState.party.map(c => ({ ...c, totalStats: this.getTotalStats(c) })),
+      enemies: [{
+        id: generateId(),
+        name: boss.name,
+        class: 'boss',
+        level: node.level,
+        currentHp: boss.stats.hp,
+        maxHp: boss.stats.hp,
+        totalStats: { ...boss.stats },
+        stunned: 0,
+        sprite: boss.sprite,
+        isBoss: true,
+        goldDrop: [boss.goldReward, boss.goldReward],
+        xpDrop: boss.xpReward,
+        itemDropChance: 1.0
+      }],
+      turn: 0,
+      log: []
+    };
+    GameState.dotEffects = [];
+    GameState.buffs = [];
+    GameState.tauntingId = null;
+    this.addCombatLog(`Castle Boss: ${boss.name} appears!`, 'special');
+    GameState.paused = false;
+    UI.updatePauseButton();
+  },
+  
+  startDungeonBattle(nodeId, dungeonId) {
+    const node = NODE_DEFINITIONS.find(n => n.id === nodeId);
+    const dungeon = node.dungeons.find(d => d.id === dungeonId);
+    const dungeonState = GameState.nodes[nodeId].dungeons[dungeonId];
+    if (!dungeonState.owned) return;
+    
+    GameState.currentBattle = { type: 'dungeon', nodeId, dungeonId };
+    
+    const enemyCount = randomRange(1, 3);
+    const enemies = [];
+    for (let i = 0; i < enemyCount; i++) {
+      enemies.push(this.generateEnemy(nodeId, dungeonId));
+    }
+    
+    GameState.combat = {
+      party: GameState.party.map(c => ({ ...c, totalStats: this.getTotalStats(c) })),
+      enemies,
+      turn: 0,
+      log: []
+    };
+    GameState.dotEffects = [];
+    GameState.buffs = [];
+    GameState.tauntingId = null;
+    this.addCombatLog(`${dungeon.name}: ${enemies.length} enemies appear!`);
+    GameState.paused = false;
+    UI.updatePauseButton();
+  },
+  
+  addCombatLog(msg, type = 'normal') {
+    if (!GameState.combat) return;
+    GameState.combat.log.push({ turn: GameState.combat.turn, msg, type });
+    if (GameState.combat.log.length > 50) GameState.combat.log.shift();
+  },
+  
+  processTurn() {
+    if (GameState.paused || !GameState.combat) return;
+    
+    // Process DOTs
+    GameState.dotEffects = GameState.dotEffects.filter(dot => {
+      dot.turns--;
+      if (dot.type === 'regrowth') {
+        const char = GameState.combat.party.find(c => c.id === dot.targetId);
+        if (char && char.currentHp > 0) {
+          char.currentHp = Math.min(char.maxHp, char.currentHp + dot.damage);
+          this.addCombatLog(`${char.name} regenerates ${dot.damage} HP`);
+        }
+      } else {
+        const enemy = GameState.combat.enemies.find(e => e.id === dot.targetId);
+        if (enemy && enemy.currentHp > 0) {
+          enemy.currentHp -= dot.damage;
+          this.addCombatLog(`${enemy.name} takes ${dot.damage} ${dot.type} damage`);
+          if (enemy.currentHp <= 0) this.defeatEnemy(enemy);
+        }
+      }
+      return dot.turns > 0;
+    });
+    
+    GameState.buffs = GameState.buffs.filter(buff => {
+      buff.turns--;
+      if (buff.type === 'taunt' && buff.turns <= 0) GameState.tauntingId = null;
+      return buff.turns > 0;
+    });
+    
+    GameState.activePotions = GameState.activePotions.filter(p => {
+      p.remaining--;
+      if (p.remaining <= 0) {
+        if (p.type === 'double_gold') GameState.doubleGoldActive = false;
+        if (p.type === 'infinite_scrolls') GameState.infiniteScrollsActive = false;
+      }
+      return p.remaining > 0;
+    });
+    
+    GameState.combat.party.forEach(char => {
+      if (char.stunned > 0) { char.stunned--; this.addCombatLog(`${char.name} is recovering`); return; }
+      if (char.currentHp <= 0) return;
+      this.processCharacterTurn(char);
+    });
+    
+    GameState.combat.enemies.forEach(enemy => {
+      if (enemy.stunned > 0) { enemy.stunned--; return; }
+      if (enemy.currentHp <= 0) return;
+      this.processEnemyTurn(enemy);
+    });
+    
+    this.checkCombatEnd();
+    GameState.combat.turn++;
+  },
+  
+  processCharacterTurn(char) {
+    const aliveEnemies = GameState.combat.enemies.filter(e => e.stunned === 0 && e.currentHp > 0);
+    if (aliveEnemies.length === 0) return;
+    
+    const target = randomPick(aliveEnemies);
+    const stats = char.totalStats || this.getTotalStats(char);
+    
+    const rageBuff = GameState.buffs.find(b => b.charId === char.id && b.type === 'rage');
+    const dmgMult = rageBuff ? 1.5 : 1;
+    
+    if (doesAttackHit(stats.atk, target.totalStats.def)) {
+      const damage = calculateDamage(Math.floor(stats.dmg * dmgMult), target.totalStats.arm);
+      target.currentHp -= damage;
+      this.addCombatLog(`${char.name} hits ${target.name} for ${damage}`);
+      if (target.currentHp <= 0) this.defeatEnemy(target);
+    } else {
+      this.addCombatLog(`${char.name} misses ${target.name}`);
+    }
+  },
+  
+  processEnemyTurn(enemy) {
+    let target;
+    if (GameState.tauntingId) {
+      target = GameState.combat.party.find(c => c.id === GameState.tauntingId && c.stunned === 0 && c.currentHp > 0);
+    }
+    if (!target) {
+      const alive = GameState.combat.party.filter(c => c.stunned === 0 && c.currentHp > 0);
+      if (alive.length === 0) return;
+      target = randomPick(alive);
+    }
+    
+    if (doesAttackHit(enemy.totalStats.atk, target.totalStats.def)) {
+      let damage = calculateDamage(enemy.totalStats.dmg, target.totalStats.arm);
+      const shield = GameState.buffs.find(b => b.charId === target.id && b.type === 'shield_block');
+      if (shield) damage = Math.floor(damage * 0.5);
+      target.currentHp -= damage;
+      this.addCombatLog(`${enemy.name} hits ${target.name} for ${damage}`);
+      if (target.currentHp <= 0) {
+        target.stunned = 3;
+        target.currentHp = 0;
+        this.addCombatLog(`${target.name} is knocked out!`);
+      }
+    } else {
+      this.addCombatLog(`${enemy.name} misses ${target.name}`);
+    }
+  },
+  
+  defeatEnemy(enemy) {
+    enemy.stunned = 3;
+    enemy.currentHp = 0;
+    GameState.totalKills++;
+    
+    this.updateAchievement('first_blood', 1);
+    this.updateAchievement('monster_slayer', GameState.totalKills);
+    this.updateAchievement('legendary_hunter', GameState.totalKills);
+    
+    const goldMult = GameState.doubleGoldActive ? 2 : 1;
+    const rogueMult = GameState.party.some(c => c.class === 'rogue') ? 1.5 : 1;
+    const prestigeMult = 1 + (GameState.prestigeUpgrades.gold_bonus || 0) * 0.1;
+    const gold = Math.floor(randomRange(enemy.goldDrop[0], enemy.goldDrop[1]) * goldMult * rogueMult * prestigeMult);
+    GameState.gold += gold;
+    GameState.totalGoldEarned += gold;
+    
+    this.updateAchievement('gold_hoarder', GameState.totalGoldEarned);
+    this.updateAchievement('wealthy', GameState.totalGoldEarned);
+    
+    const xpMult = 1 + (GameState.prestigeUpgrades.xp_bonus || 0) * 0.1;
+    const xp = Math.floor(enemy.xpDrop * xpMult);
+    const aliveParty = GameState.combat.party.filter(c => c.currentHp > 0);
+    aliveParty.forEach(c => this.addXp(c, Math.floor(xp / aliveParty.length)));
+    
+    const dropChance = enemy.isBoss ? 1.0 : (0.2 + enemy.level * 0.01);
+    if (Math.random() < dropChance) {
+      const item = this.generateItem(enemy.level);
+      GameState.inventory.push(item);
+      GameState.itemsFound++;
+      this.updateAchievement('treasure', GameState.itemsFound);
+      
+      GameState.party.forEach(c => {
+        if (c.currentHp > 0 && this.isItemBetter(item, c.equipment[item.type])) {
+          c.equipment[item.type] = item;
+          GameState.inventory = GameState.inventory.filter(i => i.id !== item.id);
+          this.addCombatLog(`${c.name} equipped ${item.name}!`);
+          this.recalculateCharacterStats(c);
+        }
+      });
+    }
+    
+    if (Math.random() < 0.05) {
+      const type = randomPick(Object.keys(POTION_TYPES));
+      const def = POTION_TYPES[type];
+      GameState.potions.push({ id: generateId(), type, name: def.name, desc: def.desc, duration: def.duration });
+    }
+    if (Math.random() < 0.03) {
+      const type = randomPick(Object.keys(SCROLL_TYPES));
+      const def = SCROLL_TYPES[type];
+      GameState.scrolls.push({ id: generateId(), type, name: def.name, desc: def.desc });
+    }
+    
+    this.addCombatLog(`${enemy.name} is defeated!`, enemy.isBoss ? 'special' : 'normal');
+    
+    if (enemy.isBoss) this.onCastleBossDefeated(GameState.currentBattle.nodeId);
+  },
+  
+  onCastleBossDefeated(nodeId) {
+    const nodeState = GameState.nodes[nodeId];
+    nodeState.castleBeaten = true;
+    GameState.castleBossesBeaten++;
+    this.updateAchievement('castle_conqueror', GameState.castleBossesBeaten);
+    
+    const nodeDef = NODE_DEFINITIONS.find(n => n.id === nodeId);
+    nodeDef.unlocks.forEach(nextId => {
+      if (GameState.nodes[nextId]) GameState.nodes[nextId].unlocked = true;
+    });
+    
+    this.addCombatLog(`Castle conquered! New areas unlocked!`, 'special');
+  },
+  
+  checkCombatEnd() {
+    if (!GameState.combat) return;
+    
+    const allEnemiesDefeated = GameState.combat.enemies.every(e => e.stunned > 0);
+    const allPartyDefeated = GameState.combat.party.every(c => c.stunned > 0);
+    
+    if (allEnemiesDefeated) {
+      this.addCombatLog('Victory!', 'special');
+      GameState.party.forEach(c => {
+        c.currentHp = Math.min(c.maxHp, c.currentHp + Math.floor(c.maxHp * 0.2));
+      });
+      GameState.currentBattle = null;
+      GameState.combat = null;
+      GameState.paused = true;
+      UI.updatePauseButton();
+    } else if (allPartyDefeated) {
+      this.addCombatLog('Party defeated! Retreating...', 'special');
+      GameState.currentBattle = null;
+      GameState.combat = null;
+      GameState.paused = true;
+      GameState.party.forEach(c => {
+        c.currentHp = Math.floor(c.maxHp * 0.5);
+        c.stunned = 0;
+      });
+      UI.updatePauseButton();
+    }
+  },
+  
+  addXp(char, xp) {
+    const bonus = 1 + (GameState.prestigeUpgrades.xp_bonus || 0) * 0.1;
+    char.xp += Math.floor(xp * bonus);
+    while (char.xp >= char.xpToLevel) {
+      char.xp -= char.xpToLevel;
+      char.level++;
+      char.skillPoints++;
+      char.xpToLevel = xpForLevel(char.level + 1);
+      this.recalculateCharacterStats(char);
+      char.currentHp = Math.min(char.maxHp, char.currentHp + 10);
+    }
+  },
+  
+  purchaseFarm(nodeId, dungeonId) {
+    const node = NODE_DEFINITIONS.find(n => n.id === nodeId);
+    const dungeon = node.dungeons.find(d => d.id === dungeonId);
+    const nodeState = GameState.nodes[nodeId];
+    const dungeonState = nodeState.dungeons[dungeonId];
+    
+    if (!nodeState.castleBeaten || dungeonState.owned || GameState.gold < dungeon.cost) return false;
+    
+    GameState.gold -= dungeon.cost;
+    dungeonState.owned = true;
+    this.recalculatePassiveIncome();
+    
+    let farmCount = 0;
+    Object.values(GameState.nodes).forEach(n => {
+      Object.values(n.dungeons).forEach(d => { if (d.owned) farmCount++; });
+    });
+    this.updateAchievement('farm_master', farmCount);
+    return true;
+  },
+  
+  toggleFarm(nodeId, dungeonId) {
+    const dungeonState = GameState.nodes[nodeId].dungeons[dungeonId];
+    if (!dungeonState.owned) return;
+    dungeonState.active = !dungeonState.active;
+    this.recalculatePassiveIncome();
+  },
+  
+  recalculatePassiveIncome() {
+    let killsPerSec = 0, goldPerSec = 0, xpPerSec = 0;
+    
+    NODE_DEFINITIONS.forEach(node => {
+      const nodeState = GameState.nodes[node.id];
+      if (!nodeState.castleBeaten) return;
+      
+      node.dungeons.forEach(dungeon => {
+        const ds = nodeState.dungeons[dungeon.id];
+        if (ds.owned && ds.active) {
+          const rateMult = 1 + (GameState.prestigeUpgrades.farm_speed || 0) * 0.2;
+          const kills = dungeon.killRate * rateMult;
+          killsPerSec += kills;
+          goldPerSec += kills * dungeon.goldPerKill;
+          xpPerSec += kills * dungeon.xpPerKill;
+        }
+      });
+    });
+    
+    GameState.passiveKillsPerSec = killsPerSec;
+    GameState.passiveGoldPerSec = goldPerSec;
+    GameState.passiveXpPerSec = xpPerSec;
+  },
+  
+  processPassiveIncome() {
+    if (GameState.passiveKillsPerSec <= 0) return;
+    
+    if (!GameState._fractionalKills) GameState._fractionalKills = 0;
+    GameState._fractionalKills += GameState.passiveKillsPerSec * (PASSIVE_TICK_INTERVAL / 1000);
+    
+    const wholeKills = Math.floor(GameState._fractionalKills);
+    GameState._fractionalKills -= wholeKills;
+    
+    if (wholeKills > 0) {
+      GameState.totalKills += wholeKills;
+      
+      const goldMult = 1 + (GameState.prestigeUpgrades.gold_bonus || 0) * 0.1;
+      const xpMult = 1 + (GameState.prestigeUpgrades.xp_bonus || 0) * 0.1;
+      
+      const gold = Math.floor(GameState.passiveGoldPerSec * goldMult * (PASSIVE_TICK_INTERVAL / 1000));
+      const xp = Math.floor(GameState.passiveXpPerSec * xpMult * (PASSIVE_TICK_INTERVAL / 1000));
+      
+      GameState.gold += gold;
+      GameState.totalGoldEarned += gold;
+      GameState.party.forEach(c => this.addXp(c, Math.floor(xp / Math.max(1, GameState.party.length))));
+      
+      if (Math.random() < 0.001 * wholeKills) {
+        const item = this.generateItem(1);
+        GameState.inventory.push(item);
+        GameState.itemsFound++;
+      }
+    }
+  },
+  
+  usePotion(id) {
+    const potion = GameState.potions.find(p => p.id === id);
+    if (!potion) return;
+    
+    if (potion.type === 'double_gold') {
+      GameState.doubleGoldActive = true;
+      GameState.activePotions.push({ ...potion, remaining: potion.duration });
+    } else if (potion.type === 'infinite_scrolls') {
+      GameState.infiniteScrollsActive = true;
+      GameState.activePotions.push({ ...potion, remaining: potion.duration });
+    }
+    
+    GameState.potions = GameState.potions.filter(p => p.id !== id);
+  },
+  
+  useScroll(id) {
+    const scroll = GameState.scrolls.find(s => s.id === id);
+    if (!scroll) return;
+    
+    if (scroll.type === 'town_portal') {
+      GameState.party.forEach(c => { c.currentHp = c.maxHp; c.stunned = 0; });
+    }
+    
+    if (!GameState.infiniteScrollsActive) {
+      GameState.scrolls = GameState.scrolls.filter(s => s.id !== id);
+    }
+  },
+  
+  sellItem(id) {
+    const item = GameState.inventory.find(i => i.id === id);
+    if (!item) return;
+    GameState.gold += item.value;
+    GameState.inventory = GameState.inventory.filter(i => i.id !== id);
+  },
+  
+  equipItem(charId, item) {
+    const char = GameState.party.find(c => c.id === charId);
+    if (!char) return;
+    char.equipment[item.type] = item;
+    GameState.inventory = GameState.inventory.filter(i => i.id !== item.id);
+    this.recalculateCharacterStats(char);
+  },
+  
+  updateAchievement(id, progress) {
+    const ach = GameState.achievements[id];
+    if (!ach || ach.completed) return;
+    ach.progress = Math.max(ach.progress, progress);
+    const def = ACHIEVEMENTS.find(a => a.id === id);
+    if (ach.progress >= def.req) {
+      ach.completed = true;
+      GameState.adventurePoints += def.ap;
+    }
+  },
+  
+  purchasePrestigeUpgrade(id) {
+    const level = GameState.prestigeUpgrades[id] || 0;
+    const def = PRESTIGE_UPGRADES.find(u => u.id === id);
+    if (level >= def.maxLevel || GameState.adventurePoints < def.cost) return false;
+    GameState.adventurePoints -= def.cost;
+    GameState.prestigeUpgrades[id] = level + 1;
+    this.recalculatePassiveIncome();
+    return true;
+  },
+  
+  prestige() {
+    const apEarned = Math.floor(GameState.totalGoldEarned / 10000) + Math.floor(GameState.totalKills / 100);
+    if (apEarned < 1) return;
+    
+    this.updateAchievement('first_prestige', 1);
+    
+    const savedAP = GameState.adventurePoints + apEarned;
+    const savedUpgrades = { ...GameState.prestigeUpgrades };
+    const savedPrestigeCount = GameState.prestigeCount + 1;
+    const savedSkillNodes = GameState.totalSkillNodesUnlocked;
+    
+    GameState.gold = 100;
+    GameState.adventurePoints = savedAP;
+    GameState.party = [];
+    GameState.nodes = {};
+    NODE_DEFINITIONS.forEach((node, index) => {
+      GameState.nodes[node.id] = {
+        unlocked: index === 0,
+        castleBeaten: false,
+        dungeons: {}
+      };
+      node.dungeons.forEach(d => {
+        GameState.nodes[node.id].dungeons[d.id] = { owned: false, active: false };
+      });
+    });
+    GameState.inventory = [];
+    GameState.potions = [];
+    GameState.scrolls = [];
+    GameState.totalKills = 0;
+    GameState.totalGoldEarned = 0;
+    GameState.castleBossesBeaten = 0;
+    GameState.totalSkillNodesUnlocked = savedSkillNodes;
+    GameState.itemsFound = 0;
+    GameState.currentBattle = null;
+    GameState.combat = null;
+    GameState.activePotions = [];
+    GameState.doubleGoldActive = false;
+    GameState.infiniteScrollsActive = false;
+    GameState.prestigeCount = savedPrestigeCount;
+    GameState.prestigeUpgrades = savedUpgrades;
+    GameState.passiveGoldPerSec = 0;
+    GameState.passiveXpPerSec = 0;
+    GameState.passiveKillsPerSec = 0;
+    
+    this.addCharacter('fighter');
+    this.recalculatePassiveIncome();
+  },
+  
+  calculateOffline() {
+    const elapsed = Date.now() - GameState.lastSaveTime;
+    const maxOffline = MAX_OFFLINE_HOURS * 60 * 60 * 1000;
+    const effectiveTime = Math.min(elapsed, maxOffline);
+    const seconds = Math.floor(effectiveTime / 1000);
+    
+    if (seconds <= 0) return { gold: 0, kills: 0 };
+    
+    const goldMult = 1 + (GameState.prestigeUpgrades.gold_bonus || 0) * 0.1;
+    const gold = Math.floor(GameState.passiveGoldPerSec * goldMult * seconds * 0.5);
+    const kills = Math.floor(GameState.passiveKillsPerSec * seconds * 0.5);
+    
+    return { gold, kills };
+  },
+  
+  saveGame() {
+    GameState.lastSaveTime = Date.now();
+    localStorage.setItem('idleDungeonCrawlerV3', JSON.stringify(GameState));
+  },
+  
+  loadGame() {
+    const saved = localStorage.getItem('idleDungeonCrawlerV3');
+    if (saved) {
+      const data = JSON.parse(saved);
+      Object.assign(GameState, data);
+      GameState.party = GameState.party || [];
+      GameState.nodes = GameState.nodes || {};
+      GameState.inventory = GameState.inventory || [];
+      GameState.potions = GameState.potions || [];
+      GameState.scrolls = GameState.scrolls || [];
+      GameState.activePotions = GameState.activePotions || [];
+      GameState.dotEffects = [];
+      GameState.buffs = [];
+      GameState.combat = null;
+      GameState.currentBattle = null;
+      // Recalc stats for all chars
+      GameState.party.forEach(c => this.recalculateCharacterStats(c));
+    }
+  },
+  
+  exportSave() {
+    const saveData = JSON.stringify(GameState);
+    const encoded = btoa(saveData);
+    navigator.clipboard.writeText(encoded);
+    UI.showExportModal(encoded);
+  },
+  
+  importSave() {
+    const input = document.getElementById('import-input');
+    try {
+      const decoded = atob(input.value);
+      const data = JSON.parse(decoded);
+      Object.assign(GameState, data);
+      GameState.paused = true;
+      GameState.combat = null;
+      GameState.currentBattle = null;
+      GameState.dotEffects = [];
+      GameState.buffs = [];
+      GameState.party.forEach(c => this.recalculateCharacterStats(c));
+      this.recalculatePassiveIncome();
+      this.saveGame();
+      UI.hideModal('char-modal');
+      UI.render();
+    } catch (e) {
+      alert('Invalid save data!');
+    }
+  }
+};
+
+// ============================================================
+// UI
+// ============================================================
+const UI = {
+  activeTab: 'party',
+  selectedChar: null,
+  fps: 0,
+  lastFpsTime: 0,
+  fpsFrames: 0,
+  hoveredSkill: null,
+  
+  init() {
+    document.getElementById('fps-toggle').onclick = () => {
+      GameState.showFps = !GameState.showFps;
+      document.getElementById('fps-toggle').textContent = GameState.showFps ? 'Hide FPS' : 'Show FPS';
+      document.getElementById('fps-display').textContent = GameState.showFps ? 'FPS: 0' : '';
+    };
+    
+    document.getElementById('pause-btn').onclick = () => {
+      GameState.paused = !GameState.paused;
+      this.updatePauseButton();
+    };
+    
+    this.renderTabs();
+    this.render();
+  },
+  
+  renderTabs() {
+    const tabs = ['party', 'skills', 'equipment', 'pack', 'prestige', 'achievements'];
+    const container = document.getElementById('tab-buttons');
+    container.innerHTML = tabs.map(t => 
+      `<button class="tab-btn ${this.activeTab === t ? 'active' : ''}" onclick="UI.setTab('${t}')">${
+        t.charAt(0).toUpperCase() + t.slice(1)
+      }</button>`
+    ).join('');
+  },
+  
+  setTab(tab) {
+    this.activeTab = tab;
+    this.renderTabs();
+    this.renderTabContent();
+  },
+  
+  updatePauseButton() {
+    const btn = document.getElementById('pause-btn');
+    btn.textContent = GameState.paused ? '▶ Play' : '⏸ Pause';
+    btn.className = `btn ${GameState.paused ? 'btn-play' : 'btn-pause'}`;
+  },
+  
+  render() {
+    this.renderResources();
+    this.renderPassiveStats();
+    this.renderNodePanel();
+    this.renderFarmPanel();
+    this.renderGameView();
+    this.renderTabContent();
+    this.updatePauseButton();
+  },
+  
+  renderResources() {
+    const goldBonus = 1 + (GameState.prestigeUpgrades.gold_bonus || 0) * 0.1;
+    
+    document.getElementById('resources').innerHTML = `
+      <div class="resource-item">
+        <span>Gold:</span>
+        <span><span class="resource-value">${formatNumber(GameState.gold)}</span>
+        ${goldBonus > 1 ? `<span class="bonus">+${Math.round((goldBonus - 1) * 100)}%</span>` : ''}</span>
+      </div>
+      <div class="resource-item">
+        <span>Adventure Points:</span>
+        <span class="resource-value">${GameState.adventurePoints}</span>
+      </div>
+      <div class="resource-item">
+        <span>Total Kills:</span>
+        <span class="resource-value">${formatNumber(GameState.totalKills)}</span>
+      </div>
+      <div class="resource-item">
+        <span>Castles Beaten:</span>
+        <span class="resource-value">${GameState.castleBossesBeaten}/${NODE_DEFINITIONS.length}</span>
+      </div>
+    `;
+  },
+  
+  renderPassiveStats() {
+    document.getElementById('passive-stats').innerHTML = `
+      <div class="passive-item">
+        <span>⚡ Kills/sec:</span>
+        <span>${(GameState.passiveKillsPerSec || 0).toFixed(2)}</span>
+      </div>
+      <div class="passive-item">
+        <span>💰 Gold/sec:</span>
+        <span>${formatNumber(Math.floor(GameState.passiveGoldPerSec || 0))}</span>
+      </div>
+      <div class="passive-item">
+        <span>✨ XP/sec:</span>
+        <span>${formatNumber(Math.floor(GameState.passiveXpPerSec || 0))}</span>
+      </div>
+    `;
+  },
+  
+  renderNodePanel() {
+    const container = document.getElementById('node-panel');
+    let html = '';
+    
+    NODE_DEFINITIONS.forEach(node => {
+      const ns = GameState.nodes[node.id];
+      if (!ns.unlocked) return;
+      
+      const statusClass = ns.castleBeaten ? 'completed' : 'available';
+      const statusText = ns.castleBeaten ? '✓ Conquered' : '⚔️ Available';
+      
+      html += `
+        <div class="castle-panel">
+          <div class="castle-header">
+            <span class="castle-name">${node.icon} ${node.name}</span>
+            <span class="castle-status ${statusClass}">${statusText}</span>
+          </div>
+      `;
+      
+      if (!ns.castleBeaten) {
+        html += `
+          <div class="castle-boss">
+            <span class="boss-sprite">${node.castle.boss.sprite}</span>
+            <div class="boss-info">
+              <span class="boss-name">${node.castle.boss.name}</span>
+              <span class="boss-stats">HP: ${node.castle.boss.stats.hp} | DMG: ${node.castle.boss.stats.dmg}</span>
+            </div>
+          </div>
+          <button class="castle-btn" onclick="Game.startCastleBattle('${node.id}'); UI.render();">
+            ⚔️ Challenge Boss
+          </button>
+        `;
+      } else {
+        html += `<p style="font-size: 0.75rem; color: #22c55e;">Dungeons available for farming!</p>`;
+      }
+      
+      html += `</div>`;
+    });
+    
+    if (!html) html = '<div class="panel"><p style="color: #94a3b8;">No nodes unlocked yet.</p></div>';
+    container.innerHTML = html;
+  },
+  
+  renderFarmPanel() {
+    const container = document.getElementById('farm-panel');
+    let html = '<div class="farm-panel"><div class="farm-header"><span class="farm-title">🌾 Farms</span></div>';
+    let hasFarms = false;
+    
+    NODE_DEFINITIONS.forEach(node => {
+      const ns = GameState.nodes[node.id];
+      if (!ns.castleBeaten) return;
+      
+      node.dungeons.forEach(dungeon => {
+        const ds = ns.dungeons[dungeon.id];
+        if (!ds.owned) {
+          html += `
+            <div class="farm-item" style="background: #1f2937;">
+              <span class="farm-icon">${dungeon.icon}</span>
+              <div class="farm-info">
+                <span class="farm-name">${dungeon.name}</span>
+                <span class="farm-stats">Lv.${dungeon.level} | ${dungeon.killRate}/s kills</span>
+              </div>
+              <button class="farm-btn" onclick="Game.purchaseFarm('${node.id}', '${dungeon.id}'); UI.render();"
+                ${GameState.gold < dungeon.cost ? 'disabled' : ''}>
+                ${formatNumber(dungeon.cost)}g
+              </button>
+            </div>
+          `;
+        } else {
+          hasFarms = true;
+          html += `
+            <div class="farm-item">
+              <span class="farm-icon">${dungeon.icon}</span>
+              <div class="farm-info">
+                <span class="farm-name">${dungeon.name}</span>
+                <span class="farm-stats">Lv.${dungeon.level} | ${dungeon.killRate}/s | ${dungeon.goldPerKill}g/kill</span>
+              </div>
+              <button class="farm-btn ${ds.active ? 'deactivate' : ''}" onclick="Game.toggleFarm('${node.id}', '${dungeon.id}'); UI.render();">
+                ${ds.active ? 'ON' : 'OFF'}
+              </button>
+            </div>
+          `;
+        }
+      });
+    });
+    
+    if (!hasFarms) html += '<p style="font-size: 0.75rem; color: #94a3b8;">Beat castle bosses to unlock farms!</p>';
+    html += '</div>';
+    container.innerHTML = html;
+  },
+  
+  renderGameView() {
+    const noDungeon = document.getElementById('no-dungeon');
+    const dungeonView = document.getElementById('dungeon-view');
+    
+    if (!GameState.currentBattle) {
+      noDungeon.style.display = 'flex';
+      dungeonView.style.display = 'none';
+      return;
+    }
+    
+    noDungeon.style.display = 'none';
+    dungeonView.style.display = 'flex';
+    
+    const battle = GameState.currentBattle;
+    let title = '';
+    if (battle.type === 'castle') {
+      const node = NODE_DEFINITIONS.find(n => n.id === battle.nodeId);
+      title = `🏰 ${node.castle.name}`;
+    } else {
+      const node = NODE_DEFINITIONS.find(n => n.id === battle.nodeId);
+      const dungeon = node.dungeons.find(d => d.id === battle.dungeonId);
+      title = `${dungeon.icon} ${dungeon.name}`;
+    }
+    
+    document.getElementById('dungeon-header').innerHTML = `<h2>${title}</h2><span>Turn: ${GameState.combat?.turn || 0}</span>`;
+    
+    const enemies = GameState.combat?.enemies || [];
+    document.getElementById('enemies').innerHTML = enemies.map(e => this.renderCharCard(e, true, e.isBoss)).join('');
+    
+    const party = GameState.combat?.party?.filter(c => !c.isEnemy) || GameState.party;
+    document.getElementById('combat-party').innerHTML = party.map(c => this.renderCharCard(c)).join('');
+    
+    const logs = GameState.combat?.log || [];
+    document.getElementById('combat-log').innerHTML = logs.slice(-8).map(l => 
+      `<div class="log-entry ${l.type === 'special' ? 'log-special' : ''}">${l.msg}</div>`
+    ).join('');
+  },
+  
+  renderCharCard(char, isEnemy = false, isBoss = false) {
+    const hpPercent = Math.max(0, (char.currentHp / char.maxHp) * 100);
+    const stats = char.totalStats || Game.getTotalStats(char);
+    return `
+      <div class="char-card ${isEnemy ? 'enemy' : ''} ${isBoss ? 'boss' : ''} ${char.stunned > 0 ? 'stunned' : ''}">
+        <div class="char-header">
+          <span class="char-sprite">${char.sprite}</span>
+          <span class="char-name">${char.name}</span>
+        </div>
+        <div class="hp-bar">
+          <div class="hp-fill ${isBoss ? 'boss' : ''}" style="width: ${hpPercent}%"></div>
+          <span class="hp-text">${char.currentHp}/${char.maxHp}</span>
+        </div>
+        <div class="char-stats">
+          <span>DMG: ${stats.dmg}</span>
+          <span>ATK: ${stats.atk}</span>
+          <span>ARM: ${stats.arm}</span>
+          <span>DEF: ${stats.def}</span>
+        </div>
+        ${char.stunned > 0 ? `<div class="stunned-badge">Stunned (${char.stunned})</div>` : ''}
+      </div>
+    `;
+  },
+  
+  renderTabContent() {
+    const container = document.getElementById('tab-content');
+    switch (this.activeTab) {
+      case 'party': container.innerHTML = this.renderPartyTab(); break;
+      case 'skills': container.innerHTML = this.renderSkillsTab(); break;
+      case 'equipment': container.innerHTML = this.renderEquipmentTab(); break;
+      case 'pack': container.innerHTML = this.renderPackTab(); break;
+      case 'prestige': container.innerHTML = this.renderPrestigeTab(); break;
+      case 'achievements': container.innerHTML = this.renderAchievementsTab(); break;
+    }
+  },
+  
+  renderPartyTab() {
+    const maxParty = 4 + (GameState.prestigeUpgrades.extra_slot || 0);
+    const selected = GameState.party.find(c => c.id === this.selectedChar);
+    
+    let html = `
+      <div class="party-header">
+        <h3>Party (${GameState.party.length}/${maxParty})</h3>
+        <button class="add-btn" onclick="UI.showCharModal()" ${GameState.party.length >= maxParty ? 'disabled' : ''}>+ Add</button>
+      </div>
+      <div class="party-list">
+        ${GameState.party.map(c => `
+          <div class="party-member ${this.selectedChar === c.id ? 'selected' : ''}" onclick="UI.selectChar('${c.id}')">
+            <span class="party-sprite">${c.sprite}</span>
+            <div class="party-info">
+              <span class="party-name">${c.name}</span>
+              <span class="party-level">Lv.${c.level} ${CLASS_DEFINITIONS[c.class].role}</span>
+            </div>
+            ${GameState.party.length > 1 ? `<button class="remove-btn" onclick="event.stopPropagation(); Game.removeCharacter('${c.id}'); UI.render();">×</button>` : ''}
+          </div>
+        `).join('')}
+      </div>
+    `;
+    
+    if (selected) {
+      const xpPercent = (selected.xp / selected.xpToLevel) * 100;
+      html += `
+        <div class="char-details">
+          <h4>${selected.name} - Lv.${selected.level} ${CLASS_DEFINITIONS[selected.class].role}</h4>
+          <div class="xp-bar">
+            <div class="xp-fill" style="width: ${xpPercent}%"></div>
+            <span class="xp-text">XP: ${selected.xp}/${selected.xpToLevel}</span>
+          </div>
+          <div class="skill-points">Skill Points: ${selected.skillPoints}</div>
+        </div>
+      `;
+    }
+    
+    return html;
+  },
+  
+  // ============================================================
+  // SKILL TREE TAB
+  // ============================================================
+  renderSkillsTab() {
+    const selected = GameState.party.find(c => c.id === this.selectedChar);
+    
+    if (!selected) {
+      return `
+        <h3>🌟 Skill Trees</h3>
+        <p style="color: #94a3b8; font-size: 0.875rem;">Select a character from the Party tab to view their skill tree.</p>
+      `;
+    }
+    
+    const def = CLASS_DEFINITIONS[selected.class];
+    
+    let html = `
+      <div class="skill-tree-container">
+        <div class="skill-tree-header">
+          <span class="skill-tree-title">${selected.name}'s Skill Tree</span>
+          <span class="skill-points-display">⭐ ${selected.skillPoints} SP</span>
+        </div>
+        <div class="skill-tree-branches">
+          ${this.renderSkillBranch(selected, def.skillTree.offense, 'offense')}
+          ${this.renderSkillBranch(selected, def.skillTree.defense, 'defense')}
+          ${this.renderSkillBranch(selected, def.skillTree.utility, 'utility')}
+          ${this.renderSkillBranch(selected, def.skillTree.ultimate, 'ultimate')}
+        </div>
+      </div>
+    `;
+    
+    return html;
+  },
+  
+  renderSkillBranch(char, branch, branchType) {
+    let html = `
+      <div class="skill-branch branch-${branchType}">
+        <span class="branch-title">${branch.icon} ${branch.name}</span>
+        <div class="skill-nodes">
+    `;
+    
+    branch.nodes.forEach((node, index) => {
+      const isUnlocked = char.unlockedSkills[node.id];
+      const result = Game.canUnlockSkillNode(char, node.id);
+      const isAvailable = result.canUnlock;
+      const isLocked = !isUnlocked && !isAvailable;
+      
+      // Check if previous node is unlocked (for connector)
+      const prevUnlocked = index === 0 || char.unlockedSkills[branch.nodes[index - 1]?.id];
+      
+      // Add connector (except for first node)
+      if (index > 0) {
+        html += `<div class="skill-connector ${prevUnlocked ? 'active' : ''}"></div>`;
+      }
+      
+      let nodeClass = 'skill-node ';
+      if (isUnlocked) nodeClass += 'unlocked';
+      else if (isAvailable) nodeClass += 'available';
+      else nodeClass += 'locked';
+      
+      const costReduction = GameState.prestigeUpgrades.skill_cost || 0;
+      const effectiveCost = Math.max(1, node.cost - costReduction);
+      
+      html += `
+        <div class="${nodeClass}" 
+          onclick="${isAvailable ? `Game.unlockSkillNode('${char.id}', '${node.id}'); UI.render();` : ''}"
+          onmouseenter="UI.showSkillTooltip(event, '${char.id}', '${node.id}', '${branchType}')"
+          onmouseleave="UI.hideSkillTooltip()">
+          <span class="skill-node-icon">${node.icon}</span>
+          <span class="skill-node-name">${node.name}</span>
+          ${isUnlocked ? '<span class="skill-node-level">✓</span>' : 
+            (isAvailable ? `<span class="skill-node-cost">${effectiveCost}</span>` : '')}
+        </div>
+      `;
+    });
+    
+    html += '</div></div>';
+    return html;
+  },
+  
+  showSkillTooltip(event, charId, nodeId, branchType) {
+    const char = GameState.party.find(c => c.id === charId);
+    if (!char) return;
+    
+    const def = CLASS_DEFINITIONS[char.class];
+    const allNodes = [
+      ...Object.values(def.skillTree.offense.nodes),
+      ...Object.values(def.skillTree.defense.nodes),
+      ...Object.values(def.skillTree.utility.nodes),
+      ...Object.values(def.skillTree.ultimate.nodes)
+    ];
+    
+    const node = allNodes.find(n => n.id === nodeId);
+    if (!node) return;
+    
+    const result = Game.canUnlockSkillNode(char, nodeId);
+    const costReduction = GameState.prestigeUpgrades.skill_cost || 0;
+    const effectiveCost = Math.max(1, node.cost - costReduction);
+    
+    let statsHtml = '';
+    if (node.statBuffs && Object.keys(node.statBuffs).length > 0) {
+      statsHtml = '<div class="tooltip-stats">Stat Buffs:<br>';
+      Object.entries(node.statBuffs).forEach(([stat, value]) => {
+        statsHtml += `<span class="tooltip-stat">+${value} ${stat.toUpperCase()}</span> `;
+      });
+      statsHtml += '</div>';
+    }
+    
+    let reqHtml = '';
+    if (!result.canUnlock && result.reason) {
+      reqHtml = `<div class="tooltip-req">❌ ${result.reason}</div>`;
+    }
+    
+    const tooltip = document.getElementById('skill-tooltip');
+    tooltip.innerHTML = `
+      <div class="tooltip-name ${branchType}">${node.name}</div>
+      <div class="tooltip-desc">${node.desc}</div>
+      ${statsHtml}
+      ${result.canUnlock ? `<div class="tooltip-cost">Cost: ${effectiveCost} Skill Points</div>` : ''}
+      ${reqHtml}
+    `;
+    
+    tooltip.style.display = 'block';
+    tooltip.style.left = Math.min(event.clientX + 10, window.innerWidth - 260) + 'px';
+    tooltip.style.top = Math.min(event.clientY + 10, window.innerHeight - 150) + 'px';
+  },
+  
+  hideSkillTooltip() {
+    document.getElementById('skill-tooltip').style.display = 'none';
+  },
+  
+  renderEquipmentTab() {
+    const selected = GameState.party.find(c => c.id === this.selectedChar);
+    
+    let html = '<h3>Equipment</h3>';
+    
+    if (selected) {
+      const stats = Game.getTotalStats(selected);
+      html += `
+        <h4>${selected.name}</h4>
+        <div style="font-size: 0.625rem; color: #94a3b8; margin-bottom: 0.5rem;">
+          DMG: ${stats.dmg} | ATK: ${stats.atk} | ARM: ${stats.arm} | DEF: ${stats.def} | HP: ${stats.hp}
+        </div>
+        <div class="equipment-grid">
+          ${ITEM_TYPES.map(slot => {
+            const item = selected.equipment[slot];
+            return `
+              <div class="equipment-slot">
+                <span class="slot-label">${slot}</span>
+                ${item ? `
+                  <div class="equipped-item" style="border-color: ${RARITY_COLORS[item.rarity]}">
+                    <span class="item-name" style="color: ${RARITY_COLORS[item.rarity]}">${item.name}</span>
+                    <div class="item-stats">
+                      ${Object.entries(item.stats).filter(([k, v]) => v > 0).map(([k, v]) => `+${v} ${k.toUpperCase()}`).join(', ')}
+                    </div>
+                  </div>
+                ` : '<div class="empty-slot">Empty</div>'}
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+    } else {
+      html += '<p style="color: #94a3b8;">Select a character from Party tab</p>';
+    }
+    
+    html += `
+      <h4 style="margin-top: 0.5rem;">Inventory (${GameState.inventory.length})</h4>
+      <div class="inventory-grid">
+        ${GameState.inventory.slice(0, 8).map(item => `
+          <div class="inventory-item" style="border-color: ${RARITY_COLORS[item.rarity]}">
+            <span class="item-name" style="color: ${RARITY_COLORS[item.rarity]}">${item.name}</span>
+            <div class="item-stats">
+              ${Object.entries(item.stats).filter(([k, v]) => v > 0).map(([k, v]) => `+${v} ${k.toUpperCase()}`).join(', ')}
+            </div>
+            <div class="item-actions">
+              ${selected ? `<button class="equip-btn" onclick="Game.equipItem('${selected.id}', GameState.inventory.find(i => i.id === '${item.id}')); UI.render();">Equip</button>` : ''}
+              <button class="sell-btn" onclick="Game.sellItem('${item.id}'); UI.render();">Sell ${item.value}g</button>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+    
+    return html;
+  },
+  
+  renderPackTab() {
+    return `
+      <h3>🎒 Pack</h3>
+      ${GameState.activePotions.length > 0 ? `
+        <div class="active-section">
+          <h4>Active Effects</h4>
+          ${GameState.activePotions.map(p => `
+            <div class="active-potion">${p.name}: ${Math.floor(p.remaining / 4)}s remaining</div>
+          `).join('')}
+        </div>
+      ` : ''}
+      <h4>🧪 Potions (${GameState.potions.length})</h4>
+      ${GameState.potions.map(p => `
+        <div class="consumable-item">
+          <div>
+            <span class="consumable-name">${p.name}</span>
+            <span class="consumable-desc">${p.desc}</span>
+          </div>
+          <button class="use-btn" onclick="Game.usePotion('${p.id}'); UI.render();">Use</button>
+        </div>
+      `).join('') || '<p style="font-size: 0.75rem; color: #94a3b8;">No potions</p>'}
+      <h4 style="margin-top: 0.5rem;">📜 Scrolls (${GameState.scrolls.length})</h4>
+      ${GameState.infiniteScrollsActive ? '<span class="active-potion">∞ Infinite Scrolls Active!</span>' : ''}
+      ${GameState.scrolls.map(s => `
+        <div class="consumable-item">
+          <div>
+            <span class="consumable-name">${s.name}</span>
+            <span class="consumable-desc">${s.desc}</span>
+          </div>
+          <button class="use-btn" onclick="Game.useScroll('${s.id}'); UI.render();">Use</button>
+        </div>
+      `).join('') || '<p style="font-size: 0.75rem; color: #94a3b8;">No scrolls</p>'}
+    `;
+  },
+  
+  renderPrestigeTab() {
+    const apEarned = Math.floor(GameState.totalGoldEarned / 10000) + Math.floor(GameState.totalKills / 100);
+    return `
+      <h3>⭐ Prestige</h3>
+      <div class="ap-display">
+        <span>Adventure Points: ${GameState.adventurePoints}</span>
+        <span>Potential AP: +${apEarned}</span>
+      </div>
+      ${PRESTIGE_UPGRADES.map(u => `
+        <div class="prestige-upgrade">
+          <div>
+            <span style="font-weight: bold;">${u.name} (${GameState.prestigeUpgrades[u.id] || 0}/${u.maxLevel})</span>
+            <span style="font-size: 0.75rem; color: #94a3b8;">${u.desc}</span>
+          </div>
+          <button class="farm-btn" 
+            onclick="Game.purchasePrestigeUpgrade('${u.id}'); UI.render();"
+            ${GameState.adventurePoints < u.cost || (GameState.prestigeUpgrades[u.id] || 0) >= u.maxLevel ? 'disabled' : ''}>
+            ${u.cost} AP
+          </button>
+        </div>
+      `).join('')}
+      <button class="prestige-btn" onclick="if(confirm('Prestige and reset all progress?')) Game.prestige(); UI.render();"
+        ${apEarned < 1 ? 'disabled' : ''}>
+        🔄 Prestige (+${apEarned} AP)
+      </button>
+      <p class="prestige-warning">Resets everything except AP and Prestige Upgrades!</p>
+    `;
+  },
+  
+  renderAchievementsTab() {
+    return `
+      <h3>🏆 Achievements</h3>
+      ${ACHIEVEMENTS.map(a => {
+        const ach = GameState.achievements[a.id] || { progress: 0, completed: false };
+        const percent = Math.min(100, (ach.progress / a.req) * 100);
+        return `
+          <div class="achievement-item ${ach.completed ? 'completed' : ''}">
+            <span class="achievement-name">${ach.completed ? '✓' : '○'} ${a.name}</span>
+            <span class="achievement-desc">${a.desc}</span>
+            <div class="achievement-progress">
+              <div class="progress-bar"><div class="progress-fill" style="width: ${percent}%"></div></div>
+              <span>${Math.min(ach.progress, a.req)}/${a.req}</span>
+              <span class="ap-reward">+${a.ap} AP</span>
+            </div>
+          </div>
+        `;
+      }).join('')}
+    `;
+  },
+  
+  selectChar(id) {
+    this.selectedChar = this.selectedChar === id ? null : id;
+    this.render();
+  },
+  
+  showCharModal() {
+    const modal = document.getElementById('char-modal');
+    const list = document.getElementById('class-list');
+    const maxParty = 4 + (GameState.prestigeUpgrades.extra_slot || 0);
+    
+    list.innerHTML = Object.entries(CLASS_DEFINITIONS).map(([key, def]) => `
+      <button class="class-btn" onclick="Game.addCharacter('${key}'); UI.hideModal('char-modal'); UI.render();"
+        ${GameState.party.length >= maxParty ? 'disabled' : ''}>
+        <span class="class-sprite">${def.sprite}</span>
+        <span class="class-name">${def.name}</span>
+        <span class="class-role">${def.role}</span>
+      </button>
+    `).join('');
+    
+    modal.classList.add('show');
+  },
+  
+  showImportModal() {
+    document.getElementById('import-input').value = '';
+    document.getElementById('char-modal').classList.add('show');
+  },
+  
+  showExportModal(data) {
+    document.getElementById('export-area').value = data;
+    document.getElementById('export-msg').textContent = 'Save copied to clipboard!';
+    document.getElementById('export-modal').classList.add('show');
+  },
+  
+  hideModal(id) {
+    document.getElementById(id).classList.remove('show');
+  },
+  
+  showOfflineBonus(gold, kills) {
+    const el = document.getElementById('offline-bonus');
+    el.innerHTML = `💰 While away: +${formatNumber(gold)} gold, +${formatNumber(kills)} kills!`;
+    el.style.display = 'block';
+  },
+  
+  updateFps(timestamp) {
+    if (!GameState.showFps) return;
+    
+    this.fpsFrames++;
+    if (timestamp - this.lastFpsTime >= 1000) {
+      this.fps = this.fpsFrames;
+      this.fpsFrames = 0;
+      this.lastFpsTime = timestamp;
+      document.getElementById('fps-display').textContent = `FPS: ${this.fps}`;
+    }
+  }
+};
+
+// ============================================================
+// GAME LOOP
+// ============================================================
+let lastTurnTime = 0;
+let lastPassiveTime = 0;
+
+function gameLoop(timestamp) {
+  UI.updateFps(timestamp);
+  
+  if (!GameState.paused && GameState.combat) {
+    if (timestamp - lastTurnTime >= TURN_INTERVAL) {
+      Game.processTurn();
+      UI.render();
+      lastTurnTime = timestamp;
+    }
+  } else {
+    lastTurnTime = timestamp;
+  }
+  
+  if (timestamp - lastPassiveTime >= PASSIVE_TICK_INTERVAL) {
+    Game.processPassiveIncome();
+    UI.render();
+    lastPassiveTime = timestamp;
+  }
+  
+  requestAnimationFrame(gameLoop);
+}
+
+// ============================================================
+// STARTUP
+// ============================================================
+window.onload = function() {
+  Game.init();
+  UI.init();
+  lastPassiveTime = performance.now();
+  requestAnimationFrame(gameLoop);
+  
+  setInterval(() => Game.saveGame(), 30000);
+};
+
+window.onbeforeunload = function() {
+  Game.saveGame();
+};
+  </script>
+</body>
+</html>
