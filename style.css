@@ -11,7 +11,6 @@ body {
     min-height: 100vh;
 }
 
-/* Header */
 .header {
     display: flex;
     justify-content: space-between;
@@ -37,7 +36,6 @@ body {
 .btn-pause { background: #ef4444; }
 .btn-small { padding: 0.25rem 0.5rem; font-size: 0.75rem; }
 
-/* Main Layout */
 .main-content {
     display: grid;
     grid-template-columns: 280px 1fr 320px;
@@ -46,7 +44,6 @@ body {
     height: calc(100vh - 60px);
 }
 
-/* Panels */
 .panel {
     background: #1e293b;
     border-radius: 8px;
@@ -70,7 +67,6 @@ body {
     overflow: hidden;
 }
 
-/* Resources */
 .resource-item {
     display: flex;
     justify-content: space-between;
@@ -80,7 +76,6 @@ body {
 .resource-value { font-family: monospace; font-weight: bold; }
 .bonus { font-size: 0.75rem; color: #22c55e; }
 
-/* Passive Stats */
 .passive-stats {
     background: #1e293b;
     border-radius: 8px;
@@ -95,7 +90,6 @@ body {
     padding: 0.125rem 0;
 }
 
-/* Node / Farm panels (from first game) */
 .castle-panel, .farm-panel {
     background: #2d1f3d;
     border-radius: 8px;
@@ -172,7 +166,6 @@ body {
 .farm-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .farm-btn.deactivate { background: #ef4444; color: white; }
 
-/* Game View (Canvas) */
 .game-view {
     background: #1e293b;
     border-radius: 8px;
@@ -223,7 +216,6 @@ body {
     pointer-events: none;
 }
 
-/* Tabs (right panel) */
 .tab-buttons {
     display: flex;
     flex-wrap: wrap;
@@ -248,7 +240,6 @@ body {
     padding: 0.5rem;
 }
 
-/* Party Tab */
 .party-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
 .add-btn {
     padding: 0.25rem 0.5rem;
@@ -286,7 +277,6 @@ body {
     font-size: 0.875rem;
 }
 
-/* Character Details */
 .char-details {
     background: #0f172a;
     border-radius: 6px;
@@ -301,9 +291,18 @@ body {
     margin-bottom: 0.25rem;
 }
 .xp-fill { background: #8b5cf6; height: 100%; }
+.xp-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 0.75rem;
+    color: white;
+    text-shadow: 1px 1px 2px black;
+    z-index: 1;
+}
 .skill-points { font-size: 0.75rem; color: #fbbf24; margin-bottom: 0.5rem; }
 
-/* Skill Tree (from first game) */
 .skill-tree-container {
     background: #0f172a;
     border-radius: 8px;
@@ -404,7 +403,6 @@ body {
     box-shadow: 0 4px 12px rgba(0,0,0,0.5);
 }
 
-/* Equipment Tab */
 .equipment-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
@@ -431,7 +429,6 @@ body {
 .inventory-grid { display: flex; flex-direction: column; gap: 0.25rem; max-height: 150px; overflow-y: auto; }
 .inventory-item { background: #0f172a; border: 1px solid; border-radius: 4px; padding: 0.25rem; }
 
-/* Pack Tab (scrolls & potions) */
 .consumable-item {
     display: flex;
     justify-content: space-between;
@@ -455,7 +452,6 @@ body {
 .active-section { background: #1e3a1e; border-radius: 6px; padding: 0.5rem; margin-bottom: 0.5rem; }
 .active-potion { font-size: 0.75rem; color: #22c55e; }
 
-/* Prestige Tab */
 .ap-display {
     display: flex;
     justify-content: space-between;
@@ -487,7 +483,6 @@ body {
 .prestige-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .prestige-warning { font-size: 0.75rem; color: #ef4444; text-align: center; margin-top: 0.5rem; }
 
-/* Achievements Tab */
 .achievement-item { padding: 0.5rem; border-radius: 6px; margin-bottom: 0.5rem; background: #1f2937; }
 .achievement-item.completed { background: #1e3a1e; }
 .achievement-name { font-weight: bold; font-size: 0.875rem; }
@@ -497,7 +492,6 @@ body {
 .progress-fill { height: 100%; background: #22c55e; }
 .ap-reward { color: #fbbf24; font-weight: bold; }
 
-/* Save Panel */
 .save-panel { display: flex; gap: 0.25rem; padding: 0.5rem; background: #0f172a; }
 .save-btn {
     flex: 1;
@@ -510,7 +504,6 @@ body {
     font-size: 0.75rem;
 }
 
-/* Modals */
 .modal {
     position: fixed;
     top: 0; left: 0; right: 0; bottom: 0;
@@ -584,13 +577,11 @@ body {
     font-size: 0.625rem;
 }
 
-/* Scrollbar */
 ::-webkit-scrollbar { width: 8px; }
 ::-webkit-scrollbar-track { background: #1e293b; }
 ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: #64748b; }
 
-/* Rarity colors */
 .rarity-common { color: #9ca3af; }
 .rarity-uncommon { color: #22c55e; }
 .rarity-rare { color: #3b82f6; }

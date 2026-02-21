@@ -502,6 +502,7 @@ const Game = {
     },
 
     enterDungeon(nodeId) {
+        if (GameState.currentDungeon) return;
         const nodeDef = NODE_DEFINITIONS.find(n => n.id === nodeId);
         if (!nodeDef) return;
         GameState.currentDungeon = DungeonGenerator.generate(nodeDef);
@@ -510,6 +511,7 @@ const Game = {
         GameState.party.forEach((char, i) => {
             char.position = { x: 2 + i, y: 2 };
         });
+        GameState.paused = false;
         UI.addCombatLog(`Entering ${nodeDef.name}`, 'info');
     },
 
@@ -962,7 +964,8 @@ const UI = {
                         <span class="castle-status ${statusClass}">${statusText}</span>
                     </div>
                     ${!ns.castleBeaten ? `
-                        <button class="castle-btn" onclick="Game.enterDungeon('${node.id}'); UI.renderAll();">
+                        <button class="castle-btn" onclick="Game.enterDungeon('${node.id}'); UI.renderAll();"
+                            ${GameState.currentDungeon ? 'disabled' : ''}>
                             ⚔️ Enter Dungeon
                         </button>
                     ` : '<p style="font-size:0.75rem;color:#22c55e;">Dungeon cleared!</p>'}
@@ -1144,7 +1147,10 @@ const UI = {
             html += `
                 <div class="char-details">
                     <h4>${selected.name} - Lv.${selected.level}</h4>
-                    <div class="xp-bar"><div class="xp-fill" style="width:${xpPercent}%"></div><span class="xp-text">${selected.xp}/${selected.xpToNext}</span></div>
+                    <div class="xp-bar">
+                        <div class="xp-fill" style="width:${xpPercent}%"></div>
+                        <div class="xp-text">${selected.xp}/${selected.xpToNext}</div>
+                    </div>
                     <div class="skill-points">Skill Points: ${selected.skillPoints}</div>
                 </div>
             `;
