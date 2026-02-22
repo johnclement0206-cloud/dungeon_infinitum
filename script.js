@@ -1,7 +1,7 @@
 'use strict';
 
 // ============================================================
-// CLICKPOCALYPSE 2 - Clean Rewrite
+// Clean Rewrite starts here
 // ============================================================
 
 const CFG = {
@@ -1282,7 +1282,7 @@ function buildPartyCreation() {
     const intro = document.createElement('div');
     intro.className = 'partyCreationIntroductionPanel';
     intro.innerHTML = `
-        <div class="sectionTitle" style="font-size:14px">The land of CLICKPOCALYPSE needs you!</div>
+        <div class="sectionTitle" style="font-size:14px">The land of Infinitum needs you!</div>
         <p style="font-size:13px;margin:5px 0">All dungeons have been overrun with cruel monsters that just plain need killing.
         Select your brave champions and murder every last one of them.</p>`;
     container.appendChild(intro);
