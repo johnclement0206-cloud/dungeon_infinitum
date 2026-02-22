@@ -2005,3 +2005,100 @@ div {
 .encounterNotificationPanel {
     top: 392px !important;
 }
+
+
+/* =========================================================
+   DUNGEON INFINITUM - SKILL TREE ADDITIONS
+   ========================================================= */
+
+/* Skill tree tab layout */
+#skillsTabContent {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.skillHeroSelector {
+    display: flex;
+    gap: 3px;
+    padding: 4px 6px;
+    border-bottom: 1px solid #2b2b32;
+    flex-shrink: 0;
+}
+
+.skillHeroBtn {
+    padding: 4px 10px;
+    border: 1px solid #2b2b32;
+    cursor: pointer;
+    font-size: 12px;
+    background: #0b0b12;
+    color: #aaa;
+}
+
+.skillHeroBtn:hover { background: #131320; border-color: #3AA5E6; }
+.skillHeroBtn.active { background: #1a1500; border-color: #fa0; color: #fa0; }
+
+.skillTreeWrap {
+    flex: 1;
+    overflow: auto;
+    position: relative;
+}
+
+.skillTreeSVG {
+    display: block;
+    margin: 0 auto;
+}
+
+/* Node types */
+.sk-node-locked circle     { fill: #0d0d18; stroke: #333; }
+.sk-node-available circle  { fill: #1a1500; stroke: #fa0; filter: drop-shadow(0 0 4px #fa0a); }
+.sk-node-allocated circle  { fill: #2d2200; stroke: #fa0; }
+.sk-node-keystone circle   { stroke-width: 3; }
+.sk-node-grand circle      { stroke: #f84; filter: drop-shadow(0 0 8px #f84a); }
+
+.sk-node-allocated.sk-node-grand circle { fill: #2a0a00; }
+
+.sk-node text {
+    fill: #aaa;
+    font-size: 10px;
+    text-anchor: middle;
+    dominant-baseline: middle;
+    pointer-events: none;
+    font-family: inherit;
+}
+
+.sk-node-allocated text { fill: #fa0; }
+.sk-node-available text { fill: #fa0; }
+
+.sk-edge { stroke: #333; stroke-width: 2; pointer-events: none; }
+.sk-edge.allocated { stroke: #5a3a00; stroke-width: 2; }
+
+/* Skill info panel below tree */
+.skillInfoPanel {
+    border-top: 1px solid #2b2b32;
+    padding: 6px 10px;
+    font-size: 12px;
+    min-height: 60px;
+    flex-shrink: 0;
+    background: #0b0b12;
+}
+
+.skillInfoPanel .sk-name { font-weight: bold; color: #fa0; font-size: 13px; }
+.skillInfoPanel .sk-desc { color: #ccc; margin-top: 2px; }
+.skillInfoPanel .sk-effect { color: #4f4; margin-top: 2px; font-size: 11px; }
+.skillInfoPanel .sk-status { color: #8af; margin-top: 4px; font-size: 11px; }
+.skillInfoPanel .sk-points { color: #fa0; font-size: 11px; float: right; margin-top: -14px; }
+
+.skillAllocBtn {
+    display: inline-block;
+    margin-top: 5px;
+    padding: 3px 12px;
+    border: 1px solid #4a6;
+    color: #4a6;
+    cursor: pointer;
+    font-size: 11px;
+}
+.skillAllocBtn:hover { background: #041208; }
+.skillAllocBtn.disabled { border-color: #444; color: #555; cursor: default; }
+.skillAllocBtn.disabled:hover { background: transparent; }

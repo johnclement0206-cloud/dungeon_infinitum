@@ -2,7 +2,7 @@
 <html>
 <head lang="en">
     <meta charset="UTF-8">
-    <meta name="description" content="A free, mostly idle RPG" />
+    <meta name="description" content="Dungeon Infinitum — An idle RPG with infinite dungeons and deep skill trees" />
     <title>Dungeon Infinitum</title>
     <link rel="stylesheet" type="text/css" href="style.css">
 </head>
@@ -10,12 +10,13 @@
 
 <div class="gameContainer" id="gameContainer">
     <div class="tabMenu" id="gameTabMenu"></div>
-    <div class="gameTitleContainer">CLICKPOCALYPSE II</div>
+    <div class="gameTitleContainer">DUNGEON INFINITUM</div>
     <div class="pauseButtonContainer">
         <div id="pauseButton" class="upgradeButton">Pause</div>
     </div>
 
     <div class="tabContent mainTabContainer">
+
         <!-- Party creation -->
         <div id="partyCreationTabContent" class="tabContainer"></div>
 
@@ -24,7 +25,7 @@
             <div id="dungeonNotificationPanel" class="dungeonNotificationPanel"></div>
             <div id="encounterNotificationPanel" class="encounterNotificationPanel"></div>
 
-            <!-- Right panel: currency + upgrades -->
+            <!-- Right panel: currency -->
             <div id="rightPanel" class="gameTabRightPanel">
                 <div id="currencyPanel" class="gameTabRightCurrencyPanel">
                     <table style="width:100%;">
@@ -51,6 +52,9 @@
                 <div id="gameTabAdventurerInfo4" class="gameTabAdventurerInfo" style="top:176px;left:0;"></div>
             </div>
         </div>
+
+        <!-- Skills tab (populated by JS) -->
+        <div id="skillsTabContent" class="tabContainer" style="display:none;"></div>
 
         <!-- Monsters tab -->
         <div id="monstersTabContent" class="tabContainer" style="display:none;">
@@ -102,27 +106,25 @@
         <div id="infoTabContent" class="tabContainer" style="display:none;">
             <div style="padding:10px;overflow-y:auto;height:100%;box-sizing:border-box;">
                 <div class="sectionTitle">How Combat Works</div>
-                <p><b>Attack vs Defense Rating</b> — On each attack, the attacker rolls 0–ATK and the defender rolls 0–DEF. If the attacker's roll is higher, the attack hits.</p>
+                <p><b>Attack vs Defense</b> — On each attack, the attacker rolls 0–ATK and defender rolls 0–DEF. Attacker must strictly beat the defender roll to hit.</p>
                 <p><b>Damage vs Armor</b> — Damage dealt is <code>max(1, Damage − Armor + random(−2, 2))</code>. Critical hits bypass armor entirely.</p>
-                <p><b>Critical Hits</b> — Deal bonus damage and ignore armor. Stealth attacks always crit.</p>
-                <p><b>Stun</b> — When a hero reaches 0 HP they are stunned for 20 ticks, then recover with 20% HP. Stunned heroes can't act and aren't targeted.</p>
-                <p><b>Stealth</b> — Stealthed heroes are not targeted by monsters. The next attack from stealth is guaranteed to hit and crit.</p>
-                <p><b>Ticks</b> — The game runs at 4 ticks/second. Each character acts every N ticks (their speed).</p>
-                <p><b>Regen</b> — HP and SP regenerate a small amount every 3 ticks.</p>
-                <p><b>Dungeons</b> — Each dungeon has multiple rooms. The final room contains a boss. Clear all rooms to claim the dungeon.</p>
-                <p><b>Castles</b> — After clearing a dungeon, purchase its castle with gold. Castle owners can activate a farm for automatic kill income.</p>
-                <p><b>Adventure Points</b> — Earned from achievements and dungeon clears. Bragging rights.</p>
-                <p><b>Winning</b> — Clear all 35 dungeons and conquer all castles to end the eternal winter.</p>
+                <p><b>Crits & Stealth</b> — Crits deal bonus damage ignoring armor. Stealth attacks always crit with double damage.</p>
+                <p><b>Stun</b> — Heroes at 0 HP are stunned for 20 ticks, then recover at 20% HP. They can't act or be targeted while stunned.</p>
+                <p><b>Skill Trees</b> — Every hero has a unique 17-node skill tree. Earn 1 skill point per level-up. Allocate nodes to permanently boost stats. Paths branch left, centre, and right — with two keystones and a grand keystone requiring all three paths.</p>
+                <p><b>Regen</b> — HP and SP regenerate a small amount every 3 ticks (0.75s).</p>
+                <p><b>Dungeons</b> — Each has multiple rooms. The last room holds a boss. Clear all to claim the dungeon.</p>
+                <p><b>Castles & Farms</b> — Buy a castle after clearing a dungeon. Activate a farm for passive kill & gold income, including offline.</p>
+                <p><b>Winning</b> — Clear all 35 dungeons to conquer the infinite darkness.</p>
 
                 <div class="sectionTitle" style="margin-top:10px;">Options</div>
                 <div>
                     <label><input type="checkbox" id="optOffline" checked> Offline Processing Enabled</label>
                 </div>
-                <div style="margin-top:5px;">
+                <div style="margin-top:8px;">
                     <div class="upgradeButton" style="display:inline-block;cursor:pointer;" onclick="saveGame()">Save Now</div>
                     &nbsp;
                     <div class="upgradeButton" style="display:inline-block;cursor:pointer;color:#f84;"
-                        onclick="if(confirm('Reset all progress?')){localStorage.removeItem('cp2_save');location.reload();}">Reset Game</div>
+                        onclick="if(confirm('Reset all progress? This cannot be undone.')){localStorage.removeItem('di_save');location.reload();}">Reset Game</div>
                 </div>
             </div>
         </div>
