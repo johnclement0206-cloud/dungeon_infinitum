@@ -1,8 +1,7 @@
 'use strict';
 
 // ============================================================
-// DUNGEON INFINITUM
-// An idle RPG inspired by Clickpocalypse 2
+// CLICKPOCALYPSE 2 - Clean Rewrite
 // ============================================================
 
 const CFG = {
@@ -1502,8 +1501,9 @@ function buildPartyCreation() {
     const intro = document.createElement('div');
     intro.className = 'partyCreationIntroductionPanel';
     intro.innerHTML = `
-        <div class="sectionTitle" style="font-size:14px">⚔ DUNGEON INFINITUM ⚔</div>
-        <p style="font-size:13px;margin:5px 0">Assemble your party and descend into infinite dungeons. Each hero has a unique skill tree — invest skill points on level-up to forge your legend.</p>`;
+        <div class="sectionTitle" style="font-size:14px">The land of CLICKPOCALYPSE needs you!</div>
+        <p style="font-size:13px;margin:5px 0">All dungeons have been overrun with cruel monsters that just plain need killing.
+        Select your brave champions and murder every last one of them.</p>`;
     container.appendChild(intro);
 
     const wrap = document.createElement('div');
