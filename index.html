@@ -1,107 +1,140 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
+<html>
+<head lang="en">
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="A free, mostly idle RPG" />
     <title>Dungeon Infinitum</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" type="text/css" href="style.css">
 </head>
 <body>
-    <div class="header">
-        <h1 class="title">⚔️ Dungeon Infinitum</h1>
-        <div class="header-controls">
-            <span class="fps" id="fps-display"></span>
-            <button class="btn btn-small" id="fps-toggle">Show FPS</button>
-            <button class="btn btn-play" id="pause-btn">▶ Play</button>
+
+<div class="gameContainer" id="gameContainer">
+    <div class="tabMenu" id="gameTabMenu"></div>
+    <div class="gameTitleContainer">CLICKPOCALYPSE II</div>
+    <div class="pauseButtonContainer">
+        <div id="pauseButton" class="upgradeButton">Pause</div>
+    </div>
+
+    <div class="tabContent mainTabContainer">
+        <!-- Party creation -->
+        <div id="partyCreationTabContent" class="tabContainer"></div>
+
+        <!-- Main game view -->
+        <div id="gameTabContent" class="tabContainer" style="display:none;">
+            <div id="dungeonNotificationPanel" class="dungeonNotificationPanel"></div>
+            <div id="encounterNotificationPanel" class="encounterNotificationPanel"></div>
+
+            <!-- Right panel: currency + upgrades -->
+            <div id="rightPanel" class="gameTabRightPanel">
+                <div id="currencyPanel" class="gameTabRightCurrencyPanel">
+                    <table style="width:100%;">
+                        <tr>
+                            <td id="goldAmountCell" style="text-align:right;width:60px;">0</td>
+                            <td style="width:30px;text-align:left;color:#fa0;">g</td>
+                            <td id="killsCountCell" style="text-align:right;width:60px;">0</td>
+                            <td style="width:30px;text-align:left;color:#f44;">☠</td>
+                            <td id="expCell" style="text-align:right;width:60px;">0</td>
+                            <td style="width:30px;text-align:left;color:#aaa;">AP</td>
+                        </tr>
+                    </table>
+                </div>
+                <div id="adventurePointsPanel" class="gameTabRightAdventurePointsPanel"></div>
+                <div id="upgradeButtonContainer" class="gameTabRightPanelUpgradeButtonContainer"></div>
+            </div>
+
+            <!-- Bottom party panel -->
+            <div id="bottomPanel" class="gameTabBottomPanel">
+                <div id="gameTabAdventurerInfo0" class="gameTabAdventurerInfo" style="top:0;left:0;"></div>
+                <div id="gameTabAdventurerInfo1" class="gameTabAdventurerInfo" style="top:44px;left:0;"></div>
+                <div id="gameTabAdventurerInfo2" class="gameTabAdventurerInfo" style="top:88px;left:0;"></div>
+                <div id="gameTabAdventurerInfo3" class="gameTabAdventurerInfo" style="top:132px;left:0;"></div>
+                <div id="gameTabAdventurerInfo4" class="gameTabAdventurerInfo" style="top:176px;left:0;"></div>
+            </div>
         </div>
-        <div id="offline-banner" class="offline-banner"></div>
-    </div>
 
-    <div class="main-content">
-        <!-- Left Panel -->
-        <aside class="left-panel">
-            <div class="panel resources-panel">
-                <h2 class="panel-title">💰 Resources</h2>
-                <div id="resources"></div>
+        <!-- Monsters tab -->
+        <div id="monstersTabContent" class="tabContainer" style="display:none;">
+            <div id="monsterKillCountContainer" class="monsterKillCountDiv centeredElement">
+                <table style="width:100%;">
+                    <tr>
+                        <td id="killCountPanel" style="text-align:right;">0</td>
+                        <td style="width:30px;text-align:left;color:#f44;">☠</td>
+                    </tr>
+                </table>
             </div>
-            <div class="panel passive-panel">
-                <h2 class="panel-title">📊 Passive Income</h2>
-                <div id="passive-stats"></div>
+            <div class="monsterUpgradesHeaderContainer">
+                <div class="monsterUpgradesHeaderSpan">Upgrade Monsters</div>
             </div>
-            <div class="panel nodes-panel">
-                <h2 class="panel-title">🗺️ Regions</h2>
-                <div id="node-panel"></div>
+            <div id="monsterUpgradesContainer" class="monsterUpgradesContainer">
+                <div id="monsterUpgradeButtonsContainer" class="monsterUpgradeButtonsContainer"></div>
+                <table class="monsterUpgradeValuesContainer">
+                    <tr><th class="upgradeName">Upgrade</th><th class="upgradeValue">Value</th></tr>
+                    <tr>
+                        <td class="upgradeName">Gold drop chance / kill</td>
+                        <td id="goldDropChance" class="upgradeValue">0.50%</td>
+                    </tr>
+                    <tr>
+                        <td class="upgradeName">Max gold per drop</td>
+                        <td id="maxGoldPerDrop" class="upgradeValue">20 g</td>
+                    </tr>
+                    <tr>
+                        <td class="upgradeName">Min gold per drop</td>
+                        <td id="minGoldPerDrop" class="upgradeValue">0 g</td>
+                    </tr>
+                    <tr>
+                        <td class="upgradeName">Item drop chance / kill</td>
+                        <td id="itemDropChance" class="upgradeValue">0.90%</td>
+                    </tr>
+                </table>
             </div>
-            <div class="panel farms-panel">
-                <h2 class="panel-title">🌾 Farms</h2>
-                <div id="farm-panel"></div>
-            </div>
-        </aside>
-
-        <!-- Center Canvas -->
-        <main class="game-view">
-            <canvas id="mainCanvas" width="800" height="600"></canvas>
-            <canvas id="minimapCanvas" width="150" height="150"></canvas>
-            <div class="encounter-panel" id="encounterPanel">
-                <span id="dungeon-name">Select a dungeon</span>
-                <span id="room-info"></span>
-                <span id="monster-count"></span>
-            </div>
-            <div class="combat-log" id="combat-log"></div>
-        </main>
-
-        <!-- Right Panel -->
-        <aside class="right-panel">
-            <div class="tab-buttons" id="tab-buttons"></div>
-            <div class="tab-content" id="tab-content"></div>
-            <div class="action-panel">
-                <button class="action-btn" onclick="Game.saveGame()">💾 Save</button>
-                <button class="action-btn" onclick="Game.exportSave()">📤 Export</button>
-                <button class="action-btn" onclick="UI.showImportModal()">📥 Import</button>
-            </div>
-        </aside>
-    </div>
-
-    <!-- Party Creation Modal -->
-    <div class="modal" id="char-modal">
-        <div class="modal-content">
-            <h2>⚔️ Form Your Party</h2>
-            <p>Choose 4 heroes. This party will be locked until you prestige.</p>
-            <div class="class-grid" id="class-list"></div>
-            <div class="selected-count" id="selected-count">Selected: 0/4</div>
-            <button id="start-game-btn" class="modal-btn primary" onclick="Game.startWithSelectedParty()" disabled>Start Adventure</button>
-            <div class="import-section">
-                <h3>📥 Import Save</h3>
-                <textarea class="import-input" id="import-input" placeholder="Paste save data..."></textarea>
-                <button class="modal-btn" onclick="Game.importSave()">Import</button>
-            </div>
-            <button class="modal-btn close-btn" onclick="UI.hideModal('char-modal')">Cancel</button>
         </div>
-    </div>
 
-    <!-- Export Modal -->
-    <div class="modal" id="export-modal">
-        <div class="modal-content">
-            <h2>📤 Export Save</h2>
-            <p id="export-msg">Save copied to clipboard!</p>
-            <textarea class="export-area" id="export-area" readonly></textarea>
-            <button class="modal-btn close-btn" onclick="UI.hideModal('export-modal')">Close</button>
+        <!-- Dungeons tab -->
+        <div id="dungeonsTabContent" class="tabContainer" style="display:none;"></div>
+
+        <!-- Achievements tab -->
+        <div id="achievementsTabContent" class="tabContainer" style="display:none;"></div>
+
+        <!-- Stats tab -->
+        <div id="statsTabContent" class="tabContainer" style="display:none;"></div>
+
+        <!-- Info tab -->
+        <div id="infoTabContent" class="tabContainer" style="display:none;">
+            <div style="padding:10px;overflow-y:auto;height:100%;box-sizing:border-box;">
+                <div class="sectionTitle">How Combat Works</div>
+                <p><b>Attack vs Defense Rating</b> — On each attack, the attacker rolls 0–ATK and the defender rolls 0–DEF. If the attacker's roll is higher, the attack hits.</p>
+                <p><b>Damage vs Armor</b> — Damage dealt is <code>max(1, Damage − Armor + random(−2, 2))</code>. Critical hits bypass armor entirely.</p>
+                <p><b>Critical Hits</b> — Deal bonus damage and ignore armor. Stealth attacks always crit.</p>
+                <p><b>Stun</b> — When a hero reaches 0 HP they are stunned for 20 ticks, then recover with 20% HP. Stunned heroes can't act and aren't targeted.</p>
+                <p><b>Stealth</b> — Stealthed heroes are not targeted by monsters. The next attack from stealth is guaranteed to hit and crit.</p>
+                <p><b>Ticks</b> — The game runs at 4 ticks/second. Each character acts every N ticks (their speed).</p>
+                <p><b>Regen</b> — HP and SP regenerate a small amount every 3 ticks.</p>
+                <p><b>Dungeons</b> — Each dungeon has multiple rooms. The final room contains a boss. Clear all rooms to claim the dungeon.</p>
+                <p><b>Castles</b> — After clearing a dungeon, purchase its castle with gold. Castle owners can activate a farm for automatic kill income.</p>
+                <p><b>Adventure Points</b> — Earned from achievements and dungeon clears. Bragging rights.</p>
+                <p><b>Winning</b> — Clear all 35 dungeons and conquer all castles to end the eternal winter.</p>
+
+                <div class="sectionTitle" style="margin-top:10px;">Options</div>
+                <div>
+                    <label><input type="checkbox" id="optOffline" checked> Offline Processing Enabled</label>
+                </div>
+                <div style="margin-top:5px;">
+                    <div class="upgradeButton" style="display:inline-block;cursor:pointer;" onclick="saveGame()">Save Now</div>
+                    &nbsp;
+                    <div class="upgradeButton" style="display:inline-block;cursor:pointer;color:#f84;"
+                        onclick="if(confirm('Reset all progress?')){localStorage.removeItem('cp2_save');location.reload();}">Reset Game</div>
+                </div>
+            </div>
         </div>
+
     </div>
+</div>
 
-    <!-- Delete Confirmation Modal -->
-    <div class="modal" id="delete-modal">
-        <div class="modal-content">
-            <h2>⚠️ Delete All Data</h2>
-            <p>This will erase everything, including prestige. Are you absolutely sure?</p>
-            <button class="modal-btn" style="background:#ef4444;" onclick="Game.deleteAllData()">Yes, Delete Everything</button>
-            <button class="modal-btn close-btn" onclick="UI.hideModal('delete-modal')">Cancel</button>
-        </div>
-    </div>
-
-    <!-- Skill Tooltip -->
-    <div class="skill-tooltip" id="skill-tooltip"></div>
-
-    <script src="script.js"></script>
+<script src="script.js"></script>
+<script>
+    window.onload = function() {
+        Game.onLoad(document);
+    };
+</script>
 </body>
 </html>

@@ -1,778 +1,2007 @@
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-}
-
 body {
-    font-family: 'Segoe UI', system-ui, sans-serif;
-    background: #0b1120;
-    color: #e2e8f0;
-    height: 100vh;
-    overflow: hidden;
+    font-family: "Arial", Gadget, sans-serif;
+
+    font-size: 12px;
+    font-weight: normal;
+    color: #FFF;
+    background-color: #0B0B12;
 }
 
-.header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0.75rem 1.5rem;
-    background: #1e293b;
-    border-bottom: 2px solid #334155;
-    position: relative;
+table {
+    border-collapse: collapse;
+    border-spacing: 0;
 }
 
-.title {
-    font-size: 1.8rem;
-    font-weight: 700;
-    background: linear-gradient(135deg, #f97316, #a855f7);
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
+a, a:hover, a:visited, a:active {
+    color: inherit;
 }
 
-.header-controls {
-    display: flex;
-    gap: 1rem;
-    align-items: center;
+div {
+    -moz-user-select: none;
+    -webkit-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
 }
 
-.fps {
-    font-family: monospace;
-    font-size: 0.9rem;
-    color: #94a3b8;
-}
-
-.btn {
-    padding: 0.5rem 1.2rem;
-    border: none;
-    border-radius: 8px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
-    font-size: 0.9rem;
-}
-
-.btn-small {
-    padding: 0.3rem 0.8rem;
-    font-size: 0.8rem;
-}
-
-.btn-play {
-    background: #22c55e;
-    color: white;
-}
-
-.btn-pause {
-    background: #ef4444;
-    color: white;
-}
-
-.btn:hover {
-    filter: brightness(1.1);
-    transform: scale(1.02);
-}
-
-.offline-banner {
+/* The div that contains everything in the game. */
+.gameContainer {
     position: absolute;
-    top: 70px;
-    right: 20px;
-    background: #1e3a1e;
-    color: #22c55e;
-    padding: 0.75rem 1.5rem;
-    border-radius: 12px;
-    border-left: 4px solid #22c55e;
-    font-weight: 600;
-    box-shadow: 0 8px 16px rgba(0,0,0,0.5);
-    animation: slideIn 0.3s, fadeOut 4s 1s forwards;
-    z-index: 100;
-    pointer-events: none;
-}
-
-@keyframes slideIn {
-    from { transform: translateX(100%); opacity: 0; }
-    to { transform: translateX(0); opacity: 1; }
-}
-
-@keyframes fadeOut {
-    to { opacity: 0; display: none; }
-}
-
-.main-content {
-    display: grid;
-    grid-template-columns: 280px 1fr 340px;
-    gap: 0.75rem;
-    padding: 0.75rem;
-    height: calc(100vh - 70px);
-}
-
-.left-panel {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    overflow-y: auto;
-}
-
-.panel {
-    background: #1e293b;
-    border-radius: 16px;
-    padding: 1rem;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-}
-
-.panel-title {
-    font-size: 1.1rem;
-    font-weight: 600;
-    margin-bottom: 0.75rem;
-    color: #94a3b8;
-    letter-spacing: 0.5px;
-}
-
-.resources-panel .resource-item {
-    display: flex;
-    justify-content: space-between;
-    padding: 0.5rem 0;
-    border-bottom: 1px solid #334155;
-    font-size: 0.95rem;
-}
-
-.resource-item:last-child {
-    border-bottom: none;
-}
-
-.resource-value {
-    font-family: monospace;
-    font-weight: 700;
-    color: #fbbf24;
-}
-
-.passive-item {
-    display: flex;
-    justify-content: space-between;
-    font-size: 0.9rem;
-    padding: 0.3rem 0;
-    color: #94a3b8;
-}
-
-.nodes-panel .castle-panel {
-    background: #2d1f3d;
-    border-radius: 12px;
-    padding: 1rem;
-    margin-bottom: 0.75rem;
-}
-
-.castle-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 0.75rem;
-}
-
-.castle-name {
-    font-weight: 700;
-    color: #c084fc;
-    font-size: 1rem;
-}
-
-.castle-status {
-    font-size: 0.7rem;
-    padding: 0.2rem 0.6rem;
-    border-radius: 20px;
-    font-weight: 600;
-}
-
-.castle-status.available {
-    background: #22c55e33;
-    color: #22c55e;
-}
-
-.castle-status.completed {
-    background: #3b82f633;
-    color: #3b82f6;
-}
-
-.castle-btn {
-    width: 100%;
-    padding: 0.6rem;
-    background: #8b5cf6;
-    border: none;
-    border-radius: 10px;
-    color: white;
-    font-weight: 700;
-    cursor: pointer;
-    transition: 0.2s;
-}
-
-.castle-btn:hover:not(:disabled) {
-    background: #7c3aed;
-    transform: scale(1.02);
-}
-
-.castle-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    background: #475569;
-}
-
-.farms-panel .farm-item {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    background: #0f172a;
-    border-radius: 12px;
-    padding: 0.75rem;
-    margin-bottom: 0.5rem;
-}
-
-.farm-icon {
-    font-size: 1.5rem;
-}
-
-.farm-info {
-    flex: 1;
-}
-
-.farm-name {
-    font-weight: 600;
-    font-size: 0.9rem;
-}
-
-.farm-stats {
-    font-size: 0.7rem;
-    color: #94a3b8;
-}
-
-.farm-btn {
-    padding: 0.3rem 0.8rem;
-    background: #22c55e;
-    border: none;
-    border-radius: 20px;
-    color: black;
-    font-weight: 700;
-    font-size: 0.7rem;
-    cursor: pointer;
-    transition: 0.2s;
-}
-
-.farm-btn.deactivate {
-    background: #ef4444;
-    color: white;
-}
-
-.farm-btn:hover {
-    filter: brightness(1.1);
-}
-
-.game-view {
-    background: #1e293b;
-    border-radius: 16px;
-    overflow: hidden;
-    position: relative;
-}
-
-#mainCanvas {
-    width: 100%;
-    height: 100%;
-    background: #0f172a;
-    display: block;
-}
-
-#minimapCanvas {
-    position: absolute;
+    width: 1024px;
     top: 10px;
-    right: 10px;
-    border: 2px solid #475569;
-    border-radius: 8px;
-    background: #0f172a;
-}
-
-.encounter-panel {
-    position: absolute;
-    top: 10px;
-    left: 10px;
-    background: rgba(30, 41, 59, 0.95);
-    border: 1px solid #475569;
-    border-radius: 12px;
-    padding: 0.75rem 1.2rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.2rem;
-    font-size: 0.9rem;
-    backdrop-filter: blur(4px);
-}
-
-.combat-log {
-    position: absolute;
-    bottom: 10px;
-    left: 10px;
-    right: 10px;
-    background: rgba(0,0,0,0.8);
-    border-radius: 12px;
-    padding: 0.75rem;
-    height: 80px;
-    overflow-y: auto;
-    font-size: 0.8rem;
-    color: #94a3b8;
-    backdrop-filter: blur(4px);
-}
-
-.right-panel {
-    background: #1e293b;
-    border-radius: 16px;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-}
-
-.tab-buttons {
-    display: flex;
-    background: #0f172a;
-    padding: 0.5rem 0.5rem 0;
-    gap: 0.2rem;
-}
-
-.tab-btn {
-    flex: 1;
-    padding: 0.6rem 0.2rem;
-    background: #334155;
-    border: none;
-    border-top-left-radius: 8px;
-    border-top-right-radius: 8px;
-    color: #cbd5e1;
-    font-weight: 600;
-    font-size: 0.75rem;
-    cursor: pointer;
-    transition: 0.2s;
-}
-
-.tab-btn.active {
-    background: #1e293b;
-    color: white;
-    box-shadow: 0 -2px 0 #f97316;
-}
-
-.tab-content {
-    flex: 1;
-    padding: 1rem;
-    overflow-y: auto;
-}
-
-.action-panel {
-    display: flex;
-    gap: 0.5rem;
-    padding: 0.75rem;
-    background: #0f172a;
-    border-top: 1px solid #334155;
-}
-
-.action-btn {
-    flex: 1;
-    padding: 0.5rem;
-    background: #374151;
-    border: none;
-    border-radius: 8px;
-    color: white;
-    font-size: 0.8rem;
-    cursor: pointer;
-    transition: 0.2s;
-}
-
-.action-btn:hover {
-    background: #4b5563;
-}
-
-/* Party Tab */
-.party-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1rem;
-}
-
-.party-header h3 {
-    font-size: 1.2rem;
-    color: #fbbf24;
-}
-
-.add-btn {
-    padding: 0.4rem 1rem;
-    background: #22c55e;
-    border: none;
-    border-radius: 20px;
-    color: black;
-    font-weight: 700;
-    cursor: pointer;
-}
-
-.add-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-.party-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-}
-
-.party-member {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    background: #0f172a;
-    padding: 0.75rem;
-    border-radius: 12px;
-    cursor: pointer;
-    transition: 0.2s;
-    border: 2px solid transparent;
-}
-
-.party-member.selected {
-    border-color: #f97316;
-    background: #1e293b;
-}
-
-.party-sprite {
-    font-size: 2rem;
-}
-
-.party-info {
-    flex: 1;
-}
-
-.party-name {
-    font-weight: 700;
-    font-size: 1rem;
-}
-
-.party-level {
-    font-size: 0.8rem;
-    color: #94a3b8;
-}
-
-.remove-btn {
-    background: #ef4444;
-    border: none;
-    border-radius: 50%;
-    width: 24px;
-    height: 24px;
-    color: white;
-    font-weight: 700;
-    cursor: pointer;
-}
-
-.char-details {
-    background: #0f172a;
-    border-radius: 12px;
-    padding: 1rem;
-    margin-top: 1rem;
-}
-
-.xp-bar {
-    background: #374151;
-    border-radius: 20px;
-    height: 20px;
-    position: relative;
-    margin: 0.5rem 0;
-    overflow: hidden;
-}
-
-.xp-fill {
-    background: #8b5cf6;
-    height: 100%;
-    transition: width 0.2s;
-}
-
-.xp-text {
-    position: absolute;
-    top: 50%;
+    margin-left: -512px;
     left: 50%;
-    transform: translate(-50%, -50%);
-    font-size: 0.7rem;
-    color: white;
-    text-shadow: 0 1px 2px black;
+    height: 718px;
 }
 
-.skill-points {
-    font-size: 0.9rem;
-    color: #fbbf24;
-    font-weight: 600;
+.pauseButtonContainer {
+    position:absolute;
+    right: 0;
+    top:0;
+    text-align:center;
+
+    padding:3px;
+    width: 55px;
+    height: 20px;
 }
 
-/* Equipment Tab */
-.equipment-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 0.5rem;
-    margin-bottom: 1rem;
+.gameTitleContainer {
+    position: absolute;
+    top: 1px;
+    right: 60px;
+    width: 220px;
+    height: 20px;
+    padding-top:3px;
+    padding-right:5px;
+    text-align: right;
+    font-size: 18px;
+    font-weight: bold;
 }
 
-.equipment-slot {
-    background: #0f172a;
-    border-radius: 8px;
-    padding: 0.5rem;
-}
-
-.slot-label {
-    font-size: 0.7rem;
-    color: #94a3b8;
-    text-transform: uppercase;
-}
-
-.equipped-item {
-    border: 1px solid;
-    border-radius: 6px;
-    padding: 0.3rem;
-    margin-top: 0.2rem;
-}
-
-.inventory-grid {
-    max-height: 200px;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 0.3rem;
-}
-
-.inventory-item {
-    background: #0f172a;
-    border-radius: 6px;
-    padding: 0.4rem;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-/* Pack Tab */
-.consumable-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: #0f172a;
-    border-radius: 8px;
-    padding: 0.5rem;
-    margin-bottom: 0.3rem;
-}
-
-.active-section {
-    background: #1e3a1e;
-    border-radius: 8px;
-    padding: 0.5rem;
-    margin-bottom: 1rem;
-}
-
-/* Prestige Tab */
-.ap-display {
-    background: #0f172a;
-    border-radius: 12px;
-    padding: 1rem;
-    margin-bottom: 1rem;
-    display: flex;
-    justify-content: space-between;
-    font-weight: 700;
-}
-
-.prestige-upgrade {
-    background: #0f172a;
-    border-radius: 8px;
-    padding: 0.75rem;
-    margin-bottom: 0.5rem;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.prestige-btn {
-    width: 100%;
-    padding: 1rem;
-    background: #8b5cf6;
-    border: none;
-    border-radius: 12px;
-    color: white;
-    font-weight: 700;
-    font-size: 1.1rem;
-    cursor: pointer;
-}
-
-/* Achievements */
-.achievement-item {
-    background: #0f172a;
-    border-radius: 8px;
-    padding: 0.75rem;
-    margin-bottom: 0.5rem;
-    border-left: 4px solid #475569;
-}
-
-.achievement-item.completed {
-    border-left-color: #22c55e;
-    background: #1e3a1e;
-}
-
-.achievement-name {
-    font-weight: 700;
-}
-
-.achievement-progress {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 0.8rem;
-    margin-top: 0.3rem;
-}
-
-.progress-bar {
-    flex: 1;
-    height: 6px;
-    background: #374151;
-    border-radius: 3px;
-}
-
-.progress-fill {
-    height: 100%;
-    background: #22c55e;
-    border-radius: 3px;
-}
-
-/* Settings Tab */
-.settings-section {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-}
-
-.settings-btn {
-    padding: 0.75rem;
-    background: #374151;
-    border: none;
-    border-radius: 8px;
-    color: white;
-    font-weight: 600;
-    cursor: pointer;
+.sectionTitle {
+    font-weight: bold;
     text-align: left;
 }
 
-.settings-btn.danger {
-    background: #ef4444;
+.centeredElement {
+    margin-left: auto;
+    margin-right: auto;
 }
 
-/* Modals */
-.modal {
-    display: none;
-    position: fixed;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(0,0,0,0.8);
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
+.scrollingContainer {
+    overflow-y: scroll;
 }
 
-.modal.show {
-    display: flex;
+.borderedContainer {
+    border: 1px solid #2B2B32;
 }
 
-.modal-content {
-    background: #1e293b;
-    border-radius: 24px;
-    padding: 2rem;
-    max-width: 600px;
-    width: 90%;
-    max-height: 80vh;
-    overflow-y: auto;
-    border: 1px solid #475569;
+.topMargin {
+    margin-top: 3px;
 }
 
-.class-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 1rem;
-    margin: 1.5rem 0;
+.leftRightMargin {
+    margin-left: 3px;
+    margin-right: 3px;
 }
 
-.class-btn {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 1rem;
-    background: #0f172a;
-    border: 2px solid transparent;
-    border-radius: 16px;
+.lockedSpanText {
+    display: block;
+    margin-top:10px;
+    margin-left: 10px;
+}
+
+/* **************************************************************************************** */
+/*                                     BUTTONS                                              */
+/* **************************************************************************************** */
+
+.upgradeButton {
+    padding:3px;
+    border: 1px solid #3AA5E6;
+    /*text-align: center;*/
     cursor: pointer;
-    transition: 0.2s;
 }
 
-.class-btn:hover {
-    background: #1e293b;
-    border-color: #f97316;
+.upgradeButton:hover {
+    background-color: #2B2B32;
+    cursor: pointer;
 }
 
-.class-sprite {
-    font-size: 2.5rem;
+.upgradeButton:active {
+    position: relative;
+    top: 1px;
+    cursor: pointer;
 }
 
-.class-name {
-    font-weight: 700;
-    margin-top: 0.3rem;
+.disabledUpgradeButton {
+    padding:3px;
+    border: 1px solid #2B2B32;
+    cursor: default;
+    color:#AAA;
 }
 
-.class-role {
-    font-size: 0.7rem;
-    color: #94a3b8;
+.ownedUpgradeButton {
+    padding:3px;
+    border: 1px solid #FA0;
+    background-color: #0B0B12;
+    cursor: default;
 }
 
-.selected-count {
+/* **************************************************************************************** */
+/*                                     TAB MENU                                             */
+/* **************************************************************************************** */
+
+.tabMenu {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 30px;
+}
+
+.tabMenu ul {
+    position: absolute;
+    bottom: 0;
+    list-style: none;
+    padding: 0;
+    margin: 5px 0 0;
+}
+
+.tabMenu li {
+    float: left;
+
+    /* Make the tabs lie directly on top of the container. (eliminate a 1 pixel gap) */
+    position: relative;
+    top: 1px;
+    border: 1px solid #2B2B32;
+    border-bottom-width: 0;
+    margin: 0 0 0 4px;
+}
+
+.tabMenu a {
+    text-decoration: none;
+    display: block;
+    padding: 4px 10px;
     text-align: center;
-    font-size: 1.1rem;
-    font-weight: 700;
-    color: #fbbf24;
-    margin: 1rem 0;
-}
-
-.modal-btn {
-    padding: 0.75rem 1.5rem;
-    border: none;
-    border-radius: 12px;
-    font-weight: 700;
     cursor: pointer;
+    /*background-color: #2B2B32;*/
+}
+
+.tabMenu a:hover {
+    background-color: #3AA5E6;
+}
+
+.tabMenu .selectedTab {
+    position: relative;
+    top: 1px;
+    border: 1px solid #2B2B32;
+}
+
+.tabMenu .selectedTab a {
+    background-color: #2B2B32;
+    /*color: #FFF;*/
+}
+
+.tabContent {
+    border-top: 1px solid #2B2B32;
+    position: absolute;
+    top: 30px;
+    right: 0;
+    left: 0;
+    bottom: 0;
+}
+
+.tabContainer {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+}
+
+.mainTabContainer {
+    border-left: 1px solid #2B2B32;
+    border-right: 1px solid #2B2B32;
+    border-bottom: 1px solid #2B2B32;
+}
+
+.tabMenu .tabHighlighted a {
+    background-color: #3AA5E6;
+}
+
+
+/* **************************************************************************************** */
+/*                                PARTY CREATION TAB                                        */
+/* **************************************************************************************** */
+
+.partyCreationIntroductionPanel {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    right: 3px;
+    height: 92px;
+
+    padding: 5px;
+    border: 1px solid #2B2B32;
+}
+
+.partySelectionHeaderContainer {
+    position: absolute;
+    top: 116px;
+    height: 19px;
+    left: 3px;
+    width: 220px;
+    padding: 5px;
+}
+
+.selectedCharactersHeaderContainer {
+    position: absolute;
+    top: 116px;
+    height: 19px;
+    left: 513px;
+    width: 220px;
+    padding: 5px;
+}
+
+.partySelectionHeaderSpan {
+    background-color: #2B2B32;
+    color: #FFF;
+    margin: 2px 0 0;
+    padding: 4px 7px;
+    width:120px;
+    text-align: center;
+}
+
+.partySelectionPanel {
+    position: absolute;
+    top: 140px;
+    left: 3px;
+    width: 500px;
+    height: 490px;
+    overflow-y: auto;
+    border: 1px solid #2B2B32;
+}
+
+.selectedCharactersPanel {
+    position: absolute;
+    top: 140px;
+    left: 513px;
+    width: 500px;
+    height: 490px;
+    overflow-y: auto;
+    border: 1px solid #2B2B32;
+}
+
+.partySelectionNameWarning {
+    position: absolute;
+    height: 25px;
+    left: 3px;
+    right: 3px;
+    bottom: 3px;
+    padding-top: 10px;
+    text-align: center;
+    font-weight: bold;
+    border: 1px solid #FA0;
+    color: #FA0;
+}
+
+.partySelectionTable {
+    border-spacing: 5px;
+    margin:3px;
+}
+
+.partySelectionTable td {
+    padding: 3px;
+}
+
+.lockedCharacterSelectionTable {
+    border: 1px solid #2B2B32;
+    background-color: #111;
+    cursor: default;
+    border-collapse: separate;
+    border-spacing: 3px;
     width: 100%;
-    margin: 0.3rem 0;
+    height: 76px;
 }
 
-.modal-btn.primary {
-    background: #8b5cf6;
-    color: white;
-}
-
-.modal-btn.close-btn {
-    background: #475569;
-    color: white;
-}
-
-.import-input, .export-area {
+.characterSelectionButton {
+    border: 1px solid #3AA5E6;
+    cursor: pointer;
+    border-collapse: separate;
+    border-spacing: 3px;
     width: 100%;
-    background: #0f172a;
-    border: 1px solid #475569;
-    border-radius: 8px;
-    color: white;
-    padding: 0.5rem;
-    margin: 0.5rem 0;
-    font-size: 0.8rem;
+}
+.characterSelectionButton:active {
+    position: relative;
+    top: 1px;
+    cursor: pointer;
 }
 
-/* Scrollbar */
-::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+.deselectCharacterButton {
+    position:absolute;
+    padding:3px;
+    top: 3px;
+    width: 13px;
+    right: 3px;
+    height: 12px;
+    border: 1px solid #3AA5E6;
+    background-color: #0B0B12;
+    text-align:center;
+    z-index: 200;
 }
 
-::-webkit-scrollbar-track {
-    background: #1e293b;
+.deselectCharacterButton:hover {
+    background-color: #2B2B32;
+    cursor: pointer;
 }
 
-::-webkit-scrollbar-thumb {
-    background: #475569;
-    border-radius: 4px;
+.deselectCharacterButton:active {
+    top: 4px;
+    cursor: pointer;
 }
 
-::-webkit-scrollbar-thumb:hover {
-    background: #64748b;
+.moveUpButton {
+    position:absolute;
+    padding:3px;
+    top: 3px;
+    width: 13px;
+    right: 52px;
+    height: 12px;
+    border: 1px solid #3AA5E6;
+    text-align: center;
+    background-color: #0B0B12;
+    z-index: 200;
+}
+
+.moveUpButton:hover {
+    background-color: #2B2B32;
+    cursor: pointer;
+}
+
+.moveUpButton:active {
+    top: 4px;
+    cursor: pointer;
+}
+
+.disabledMoveUpButton {
+    position:absolute;
+    padding:3px;
+    top: 3px;
+    width: 13px;
+    right: 52px;
+    height: 12px;
+    text-align: center;
+    border: 1px solid #2B2B32;
+    background-color: #222;
+    cursor: default;
+}
+
+.moveDownButton {
+    position:absolute;
+    padding:3px;
+    top: 3px;
+    width: 16px;
+    right: 26px;
+    height: 12px;
+    border: 1px solid #3AA5E6;
+    text-align: center;
+    background-color: #0B0B12;
+    z-index: 200;
+}
+
+.moveDownButton:hover {
+    background-color: #2B2B32;
+    cursor: pointer;
+}
+
+.moveDownButton:active {
+    top: 4px;
+    cursor: pointer;
+}
+
+.disabledMoveDownButton {
+    position:absolute;
+    padding:3px;
+    top: 3px;
+    width: 13px;
+    right: 26px;
+    height: 12px;
+    text-align: center;
+    border: 1px solid #2B2B32;
+    background-color: #222;
+    cursor: default;
+}
+
+
+.selectedCharacterContainer {
+    position:relative;
+}
+
+.selectedCharacterSelectionTable {
+    border: 1px solid #FA0;
+    border-collapse: separate;
+    border-spacing: 3px;
+}
+.errorSelectedCharacterSelectionTable {
+    border: 1px solid #F00;
+    border-collapse: separate;
+    border-spacing: 3px;
+}
+.disabledCharacterSelectionButton {
+    border: 1px solid #2B2B32;
+    background-color: #222;
+    cursor: default;
+    border-collapse: separate;
+    border-spacing: 3px;
+}
+
+.partyConfirmationPanel {
+    position: absolute;
+    bottom: 3px;
+    left: 3px;
+    right: 3px;
+    height: 48px;
+}
+
+/* **************************************************************************************** */
+/*                                     GAME TAB                                             */
+/* **************************************************************************************** */
+
+.gameTabTopLeftPanel {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    height: 450px;
+    width: 740px;
+    border: 1px solid #2B2B32;
+    z-index: -1;
+}
+
+.encounterNotificationPanel {
+    position: absolute;
+    top: 415px;
+    left: 3px;
+    width: 740px;
+    text-align: center;
+    font-weight: bold;
+    z-index: 100; /* Make the notification be above the canvas. */
+    display:none;
+}
+
+.dungeonNotificationDiv {
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 5px;
+    padding-right: 5px;
+    background-color: #2B2B32;
+    opacity: 0.8;
+    display:inline-block; /* Make the div behave like a line element so that it shrinks to fit the content. */
+    border: 1px solid #2B2B32;
+}
+
+.encounterNotificationDiv {
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 5px;
+    padding-right: 5px;
+    background-color: #2B2B32;
+    opacity: 0.8;
+    display:inline-block; /* Make the div behave like a line element so that it shrinks to fit the content. */
+    border: 1px solid #2B2B32;
+}
+
+.bossEncounterNotificationDiv {
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 5px;
+    padding-right: 5px;
+    background-color: #3AA5E6;
+    color: black;
+    display:inline-block; /* Make the div behave like a line element so that it shrinks to fit the content. */
+    border: 1px solid #2B2B32;
+}
+
+.gameTabLootButtonPanel {
+    position: absolute;
+    top: 10px;
+    right: 290px;
+    height: 54px;
+    width: 180px;
+    z-index: 100; /* Make the notification be above the canvas. */
+}
+
+.lootButton {
+    padding:3px;
+    border: 1px solid #3AA5E6;
+    background-color: #0B0B12;
+    opacity: 0.9;
+    text-align: center;
+    cursor: pointer;
+}
+
+.lootButton:hover {
+    background-color: #2B2B32;
+    opacity: 0.9;
+    cursor: pointer;
+}
+
+.lootButton:active {
+    position: relative;
+    top: 1px;
+    cursor: pointer;
+}
+
+.lootButtonDisabled {
+    padding:3px;
+    border: 1px solid #2B2B32;
+    text-align: center;
+    background-color: #222;
+    opacity: 0.9;
+    cursor: default;
+}
+
+
+.gameTabScrollButtonContainer {
+    position: absolute;
+    top: 456px;
+    left: 2px;
+}
+
+.gameTabScrollButtonContainer td {
+    padding-top:0;
+    padding-bottom:0;
+}
+
+.scrollButton {
+    padding:2px;
+    width: 116px;
+    border: 1px solid #3AA5E6;
+    text-align: center;
+    cursor: pointer;
+    background-color: #0B0B12;
+}
+
+.scrollButton:hover {
+    background-color: #2B2B32;
+    cursor: pointer;
+}
+
+.scrollButton:active {
+    position: relative;
+    top: 1px;
+    cursor: pointer;
+}
+
+.scrollButtonDisabled {
+    padding:2px;
+    width: 116px;
+    border: 1px solid #2B2B32;
+    text-align: center;
+    cursor: default;
+    color: #AAA;
+}
+
+.potionCellDiv {
+    position:absolute;
+    width: 180px;
+}
+
+.potionContentContainer {
+    position:absolute;
+    top: 0;
+    left: 0;
+    height: 43px;
+    width: 192px;
+}
+
+
+.dropPotionButton {
+    position:absolute;
+    padding:3px;
+    top: 2px;
+    width: 13px;
+    right: 2px;
+    height: 12px;
+    border: 1px solid #3AA5E6;
+    text-align: center;
+    background-color: #0B0B12;
+    z-index: 200;
+}
+
+.dropPotionButton:hover {
+    background-color: #2B2B32;
+    cursor: pointer;
+}
+
+.dropPotionButton:active {
+    top: 3px;
+    cursor: pointer;
+}
+
+.potionButton {
+    display: block;
+    position:absolute;
+    padding:3px;
+    top: 0;
+    left: 0;
+    right:0;
+    bottom:0;
+
+    border: 1px solid #3AA5E6;
+    text-align: left;
+    cursor: pointer;
+    background-color: #0B0B12;
+}
+
+.potionButtonActive {
+    display: block;
+    position:absolute;
+    padding:3px;
+    top: 0;
+    left: 0;
+    right:0;
+    bottom:0;
+
+    border: 1px solid #FA0;
+    text-align: left;
+    cursor: default;
+    background-color: transparent;
+    z-index: 100;
+}
+
+.potionButtonDisabled {
+    display: block;
+    position:absolute;
+    padding:3px;
+    top: 0;
+    left: 0;
+    right:0;
+    bottom:0;
+    border: 1px solid #2B2B32;
+    text-align: left;
+    cursor: default;
+    color: #AAA;
+}
+
+.potionButtonLocked {
+    display: block;
+    position:absolute;
+    padding:3px;
+    top: 0;
+    left: 0;
+    right:0;
+    bottom:0;
+    border: 1px solid #2B2B32;
+    text-align: left;
+    cursor: default;
+    background-color: #111;
+    color: #AAA;
+}
+
+.potionButtonProgressSlider {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    background-color: #FA0;
+    opacity: 0.4;
+    width: 0;
+    display: none;
+    cursor: default;
+}
+
+.potionButton:hover {
+    background-color: #2B2B32;
+    cursor: pointer;
+}
+
+.potionButton:active {
+    top: 1px;
+    bottom: -1px;
+    cursor: pointer;
+}
+
+
+
+.dungeonNotificationPanel {
+    position: absolute;
+    top: 10px;
+    left: 3px;
+    width: 740px;
+    text-align: center;
+    font-weight: bold;
+    z-index: 100; /* Make the notification be above the canvas. */
+    display:none;
+}
+
+.gameTabRightPanel {
+    position: absolute;
+    top: 3px;
+    left: 748px;
+    bottom: 3px;
+    right: 3px;
+}
+
+.gameTabRightCurrencyPanel {
+    position:absolute;
+    top:0;
+    left:0;
+    right:0;
+    height:25px;
+
+    border: 1px solid #2B2B32;
+
+    text-align: right;
+    font-weight: bold;
+    font-size: 14px;
+}
+
+.gameTabRightAdventurePointsPanel {
+    position:absolute;
+    top: 30px;
+    left:0;
+    right:0;
+    height:25px;
+
+    border: 1px solid #2B2B32;
+
+    text-align: right;
+    font-weight: bold;
+    font-size: 14px;
+}
+
+.gameTabBlankAdventurerInfo {
+    height: 33px;
+    border: 1px solid #2B2B32;
+    margin-right: 7px;
+    width: 622px;
+    margin-top: 2px;
+}
+
+.gameTabLockedAdventurerInfo {
+    height: 33px;
+    border: 1px solid #2B2B32;
+    margin-right: 7px;
+    width: 622px;
+    margin-top: 2px;
+    background-color: #111;
+}
+
+.adventurerInfoTable td {
+    padding: 0;
+}
+
+.gameTabRightPanelUpgradeButtonContainer {
+    position:absolute;
+    top:57px;
+    left:0;
+    right:0;
+    bottom:187px;
+
+    padding-bottom: 3px;
+    padding-left: 3px;
+    padding-right: 3px;
+    border: 1px solid #2B2B32;
+    margin-top: 3px;
+
+    overflow-y: scroll;
+}
+
+
+.gameTabBottomPanel {
+    position: absolute;
+    top: 498px;
+    left: 3px;
+    bottom: 3px;
+    width: 640px;
+}
+
+.gameTabPotionPanel {
+    position: absolute;
+    top: 499px;
+    left: 630px;
+    bottom: 3px;
+    right: 3px;
+}
+
+.gameTabItemDiv {
+    padding: 3px;
+    margin-bottom: 3px;
+    border: 1px solid #2B2B32;
+}
+
+.gameTabAdventurerInfo {
+    position:absolute;
+}
+
+.gameTabAdventurerIconCell {
+    vertical-align: top;
+    width:54px;
+}
+
+.gameTabAdventurerSliderCell {
+    width:75px;position:relative;
+}
+
+.gameTabAdventurerSliderDiv {
+    position:absolute;top:0;left:0;width:100%;
+    margin-top:2px;
+}
+
+.gameTabAdventurerHealthSlider {
+    background-color: #F00;
+    height:15px;
+    position:absolute;
+    top:0;
+    left:0;
+}
+
+.gameTabAdventurerSpiritPointsSlider {
+    background-color: #00F;
+    height:15px;
+    position:absolute;
+    top:0;
+    left:0;
+}
+
+.gameTabAdventurerSliderOverlay {
+    position:absolute;text-align: right;
+    height:100%;
+    top:0;left:0;width:70px;z-index: 10;
+    padding-top:2px;
+}
+
+.gameTabAdventurerInfoHpAc {
+    width:40px;text-align:right;
+}
+
+.gameTabAdventurerInfoEffect {
+    width:29px;
+    text-align:center;
+    border:1px solid #2B2B32;
+    margin-left: 2px;
+    height: 29px;
+}
+
+.gameTabAdventurerInfoTurn {
+    width:150px;text-align:left;
+}
+
+.gameTabCharacterDiv {
+    width: 345px;
+    float: left;
+    margin-top: 3px;
+    margin-left: 3px;
+    border: 1px solid #2B2B32;
+}
+
+.characterImage {
+    width: 54px;
+    height: 54px;
+}
+
+.terrainImage {
+    width: 54px;
+    height: 54px;
+}
+
+.itemImage {
+    width: 32px;
+    height: 32px;
+}
+.potionImage {
+    width: 32px;
+    height: 32px;
+}
+
+.killsImage {
+    width: 32px;
+    height: 22px;
+    border: 1px solid #2B2B32;
+}
+
+/* **************************************************************************************** */
+/*                                 INVENTORY TAB                                            */
+/* **************************************************************************************** */
+
+.inventoryTabContents {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+}
+
+.inventoryTabEquippedItemsHeaderContainer {
+    position: absolute;
+    top: 0;
+    height: 19px;
+    left: 3px;
+    width: 220px;
+    padding: 5px;
+}
+
+.inventoryTabEquippedItems {
+    position: absolute;
+    top: 30px;
+    left: 3px;
+    right: 3px;
+    height: 225px;
+    border: 1px solid #2B2B32;
+}
+
+.inventoryTabInventoryHeaderContainer {
+    position: absolute;
+    top: 267px;
+    height: 19px;
+    left: 3px;
+    width: 220px;
+    padding: 5px;
+}
+
+.inventoryTabInventoryList {
+    position: absolute;
+    top: 297px;
+    left: 3px;
+    right: 3px;
+    bottom: 3px;
+    overflow-y: scroll;
+    border: 1px solid #2B2B32;
+}
+
+.equippedItemSlotDiv {
+    margin: 3px;
+    padding: 3px;
+    border: 1px solid #2B2B32;
+}
+
+.equipButtonDiv {
+    padding:3px;
+    width:90px;
+    border: 1px solid #2B2B32;
+    text-align: center;
+    cursor: pointer;
+}
+
+.equipButtonDiv:hover {
+    background-color: #2B2B32;
+    color: #EEE;
+    cursor: pointer;
+}
+
+.equipButtonDiv:active {
+    position: relative;
+    top: 1px;
+    cursor: pointer;
+}
+
+.itemValueBetter {
+    color: #0F0;
+}
+
+.itemValueWorse {
+    color: #F00;
+}
+
+.equipAllButtonContainer {
+    position: absolute;
+    top: 258px;
+    height: 26px;
+    right: 3px; /*165*/
+    width: 150px;
+    padding: 5px;
+}
+
+.equipAllButton {
+    padding:3px;
+    width:200px;
+    border: 1px solid #2B2B32;
+    text-align: center;
+    cursor: pointer;
+}
+
+.equipAllButton:hover {
+    background-color: #2B2B32;
+    color: #EEE;
+    cursor: pointer;
+}
+
+.equipAllButton:active {
+    position: relative;
+    top: 1px;
+    cursor: pointer;
+}
+
+.disabledEquipAllButton {
+    padding:3px;
+    width:200px;
+    border: 1px solid #2B2B32;
+    text-align: center;
+    color: #AAA;
+    background-color: #2B2B32;
+    cursor: default;
+}
+
+.itemRarityCommon {
+    color: #FFF;
+}
+.itemRarityUncommon {
+    color: #AF0;
+}
+.itemRarityRare {
+    color: #08F;
+}
+.itemRarityHistoric {
+    color: #E4E;
+}
+.itemRarityAncient {
+    color: #EF8;
+}
+
+/*.itemQualityEmpty {*/
+    /*color: #6A6A6A;*/
+/*}*/
+
+/*.itemQualityWretched {*/
+    /*color: #AAA;*/
+/*}*/
+/*.itemQualityGarbage {*/
+    /*/!*color: #470;*!/*/
+    /*color: #AF0;*/
+/*}*/
+/*.itemQualityPathetic {*/
+    /*color: #F85;*/
+    /*/!*color: #804;*!/*/
+/*}*/
+/*.itemQualityFlawed {*/
+    /*color: #A8F;*/
+    /*/!*color: #208;*!/*/
+/*}*/
+/*.itemQualityLesser {*/
+    /*color: #8FF;*/
+    /*/!*color: #004;*!/*/
+/*}*/
+/*.itemQualityInferior {*/
+    /*color: #8F8;*/
+    /*/!*color: #090;*!/*/
+/*}*/
+/*.itemQualityPlain {*/
+    /*color: #E4E;*/
+/*}*/
+/*.itemQualityCommon {*/
+    /*color: #F85;*/
+    /*/!*color: #964;*!/*/
+/*}*/
+/*.itemQualityStandard {*/
+    /*color: #099;*/
+/*}*/
+/*.itemQualityRefined {*/
+    /*color: #88F;*/
+    /*/!*color: #449;*!/*/
+/*}*/
+/*.itemQualityPremium {*/
+    /*color: #C8A;*/
+    /*/!*color: #705;*!/*/
+/*}*/
+/*.itemQualitySuperior {*/
+    /*color: #AF0;*/
+    /*/!*color: #490;*!/*/
+/*}*/
+/*.itemQualityPristine {*/
+    /*color: #08A;*/
+/*}*/
+/*.itemQualityPerfect {*/
+    /*color: #B60;*/
+    /*/!*color: #A40;*!/*/
+/*}*/
+/*.itemQualityFlawless {*/
+    /*color: #99E;*/
+    /*/!*color: #44A;*!/*/
+/*}*/
+/*.itemQualityHeroic {*/
+    /*color: #098;*/
+/*}*/
+/*.itemQualityHistoric {*/
+    /*color: #F8D;*/
+    /*/!*color: #907;*!/*/
+/*}*/
+/*.itemQualityFabled {*/
+    /*color: #68F;*/
+    /*/!*color: #24D;*!/*/
+/*}*/
+/*.itemQualityMythical {*/
+    /*color: #994;*/
+/*}*/
+/*.itemQualitySublime {*/
+    /*color: #FAA;*/
+    /*/!*color: #A66;*!/*/
+/*}*/
+/*.itemQualitySacred {*/
+    /*color: #0A4;*/
+/*}*/
+/*.itemQualityGlorious {*/
+    /*color: #E0F;*/
+    /*/!*color: #80E;*!/*/
+/*}*/
+/*.itemQualityDivine {*/
+    /*color: #F80;*/
+/*}*/
+
+/*.itemQualityGodlike {*/
+    /*color: #EF8;*/
+    /*/!*color: #490;*!/*/
+    /*/!*background-color: #212;*!/*/
+    /*/!*background-color: #FEF;*!/*/
+/*}*/
+/*.itemQualityImmortal {*/
+    /*color: #ADF;*/
+    /*/!*color: #04A;*!/*/
+    /*/!*background-color: #220;*!/*/
+    /*/!*background-color: #FFA;*!/*/
+/*}*/
+/*.itemQualityEternal {*/
+    /*color: #FAF;*/
+    /*/!*color: #D4D;*!/*/
+    /*/!*background-color: #121;*!/*/
+    /*/!*background-color: #CFC;*!/*/
+/*}*/
+/*.itemQualityEthereal {*/
+    /*color: #8FF;*/
+    /*/!*color: #0CC;*!/*/
+    /*/!*background-color: #123;*!/*/
+    /*/!*background-color: #CFE;*!/*/
+/*}*/
+/*.itemQualityAstral {*/
+    /*color: #F87;*/
+    /*/!*color: #C07;*!/*/
+    /*/!*background-color: #124;*!/*/
+    /*/!*background-color: #CEF;*!/*/
+/*}*/
+/*.itemQualityCelestial {*/
+    /*color: #6F8;*/
+    /*/!*color: #580;*!/*/
+    /*/!*background-color: #113;*!/*/
+    /*/!*background-color: #EEF;*!/*/
+/*}*/
+/*.itemQualityCosmic {*/
+    /*color: #AAF;*/
+    /*/!*color: #00A;*!/*/
+    /*/!*background-color: #220;*!/*/
+    /*/!*background-color: #FFC;*!/*/
+/*}*/
+/*.itemQualityGalactic {*/
+    /*color: #CFF;*/
+    /*/!*background-color: #311;*!/*/
+    /*/!*background-color: #A00;*!/*/
+/*}*/
+/*.itemQualityTranscendent {*/
+    /*color: #FFD;*/
+    /*/!*background-color: #121;*!/*/
+    /*/!*background-color: #4A4;*!/*/
+/*}*/
+
+/*.itemQualityUnique {*/
+    /*color: #FFC;*/
+    /*background-color: #422;*/
+    /*/!*background-color: #500;*!/*/
+/*}*/
+
+
+/* **************************************************************************************** */
+/*                                  MONSTERS TAB                                            */
+/* **************************************************************************************** */
+
+.monsterUpgradesHeaderContainer {
+    position: absolute;
+    top: 43px;
+    height: 19px;
+    left: 3px;
+    width: 220px;
+    padding: 5px;
+}
+
+.monsterUpgradesHeaderSpan {
+    background-color: #2B2B32;
+    color: #FFF;
+    margin: 2px 0 0;
+    padding: 4px 7px;
+    width:120px;
+    text-align: center;
+}
+
+.monsterUpgradesKillCount {
+    padding:3px;
+    width:200px;
+    text-align: right;
+    margin-top: 5px;
+    border: 1px solid #2B2B32;
+}
+
+.monsterKillCountDiv {
+    padding:3px;
+    width:200px;
+    margin-top: 5px;
+    font-weight: bold;
+    font-size: 14px;
+    text-align: center;
+    border: 1px solid #2B2B32;
+}
+
+.monsterUpgradeLinkMiddle {
+    height:15px;
+    width: 50%;
+    border-right: 1px solid #888;
+}
+
+.monsterUpgradesContainer {
+    position: absolute;
+    top: 73px;
+    bottom: 3px;
+    left: 3px;
+    width: 232px;
+}
+
+.monsterUpgradeButtonsContainer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 395px;
+    overflow-y: scroll;
+    border: 1px solid #2B2B32;
+}
+
+.monsterUpgradeValuesContainer {
+    position: absolute;
+    height: 210px;
+    width: 232px;
+    bottom: 0;
+    padding: 0;
+    margin:0;
+    border: 1px solid #2B2B32;
+}
+
+.monsterUpgradeValuesContainer .upgradeName {
+    padding-left: 5px;
+    text-align: left;
+}
+.monsterUpgradeValuesContainer .upgradeValue {
+    padding-right: 5px;
+    text-align: right;
+}
+
+.monstersTabContainer {
+    position: absolute;
+    top: 43px;
+    bottom: 3px;
+    left: 238px;
+    right: 3px;
+    padding: 3px;
+}
+
+.monstersTableContainer {
+    position: absolute;
+    top:0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    overflow-y: scroll;
+    padding: 0;
+}
+
+.monsterTable {
+    padding: 0;
+    margin: 0;
+    border-spacing: 0;
+    width: 100%;
+}
+
+.monsterTable th {
+    border-bottom: 1px solid #2B2B32;
+    text-align: left;
+    font-weight: normal;
+    padding-left: 5px;
+}
+
+.monsterTable td {
+    text-align: left;
+    padding-left: 5px;
+}
+
+/* **************************************************************************************** */
+/*                                 ADVENTURERS TAB                                          */
+/* **************************************************************************************** */
+
+.partyExperiencePointsDiv {
+    padding:3px;
+    width:200px;
+    margin-top: 5px;
+    font-weight: bold;
+    font-size: 14px;
+    text-align: center;
+    border: 1px solid #2B2B32;
+}
+
+.adventurerLevelUpContainer {
+    position: absolute;
+    top: 73px;
+    bottom: 3px;
+    left: 3px;
+    padding-left: 3px;
+    padding-right: 3px;
+    width: 240px;
+    border: 1px solid #2B2B32;
+}
+
+.adventurerSkillTabContainer {
+    position: absolute;
+    top: 43px;
+    bottom: 3px;
+    left: 254px;
+    right: 3px;
+    padding: 3px;
+}
+
+.adventurerSkillTreeTable {
+    width:100%;
+}
+
+.adventurerSkillTreeTable td {
+    padding-left:3px;
+    padding-right:3px;
+    vertical-align: middle;
+}
+
+/* **************************************************************************************** */
+/*                                   DUNGEONS TAB                                           */
+/* **************************************************************************************** */
+
+.dungeonsTableContainer {
+    position: absolute;
+    top:0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+
+    overflow-y: scroll;
+    padding: 0;
+    border: 1px solid #2B2B32;
+}
+
+.dungeonTabContainer {
+    position: absolute;
+    top: 43px;
+    bottom: 3px;
+    left: 3px;
+    right: 3px;
+    padding: 3px;
+}
+
+/* **************************************************************************************** */
+/*                                    CASTLES TAB                                           */
+/* **************************************************************************************** */
+
+.castleTable {
+    position: absolute;
+    top: 3px;
+    bottom: 3px;
+    left: 3px;
+    width: 350px;
+
+    overflow-y: scroll;
+    padding: 0;
+    border: 1px solid #2B2B32;
+}
+
+.castleMap {
+    position: absolute;
+    top: 3px;
+    bottom: 3px;
+    width: 660px;
+    left: 358px;
+
+    padding: 0;
+}
+
+/* **************************************************************************************** */
+/*                                    POINTS TAB                                            */
+/* **************************************************************************************** */
+
+.achievementsContainer {
+    position: absolute;
+    top: 73px;
+    bottom: 3px;
+    width: 639px;
+    right: 3px;
+
+    border: 1px solid #2B2B32;
+    overflow-y: scroll;
+
+    padding: 0;
+}
+
+.adventurePointsDiv {
+    padding:3px;
+    width:200px;
+    margin-top: 5px;
+    font-weight: bold;
+    font-size: 14px;
+    text-align: center;
+    border: 1px solid #2B2B32;
+}
+
+.achievementsHeaderContainer {
+    position: absolute;
+    top: 44px;
+    height: 19px;
+    left: 377px;
+    width: 160px;
+    padding: 5px;
+}
+
+.achievementsHeaderSpan {
+    background-color: #2B2B32;
+    color: #FFF;
+    margin: 2px 0 0;
+    padding: 4px 7px;
+    text-align: center;
+}
+
+.pointsBreakdownHeaderContainer {
+    position: absolute;
+    top: 44px;
+    height: 19px;
+    left: 3px;
+    width: 220px;
+    padding: 5px;
+}
+
+.pointsBreakdownHeaderSpan {
+    background-color: #2B2B32;
+    color: #FFF;
+    margin: 2px 0 0;
+    padding: 4px 7px;
+    width:120px;
+    text-align: center;
+}
+
+.pointsBreakdownContainer {
+    position: absolute;
+    top: 73px;
+    bottom: 230px;
+    width: 360px;
+    left: 3px;
+    border: 1px solid #2B2B32;
+    padding: 5px;
+}
+
+.pointUpgradesHeaderContainer {
+    position: absolute;
+    top: 455px;
+    height: 19px;
+    left: 3px;
+    width: 220px;
+    padding: 5px;
+}
+
+.pointUpgradesHeaderSpan {
+    background-color: #2B2B32;
+    color: #FFF;
+    margin: 2px 0 0;
+    padding: 4px 7px;
+    width:120px;
+    text-align: center;
+}
+
+.pointUpgradesContainer {
+    position: absolute;
+    top: 485px;
+    bottom: 3px;
+    width: 360px;
+    left: 3px;
+
+    border: 1px solid #2B2B32;
+    overflow-y: scroll;
+
+    padding: 5px;
+}
+
+.pointsTable {
+    width:100%;
+}
+
+.pointsTableLabel {
+    text-align:right;
+    width: 120px;
+}
+
+
+/* **************************************************************************************** */
+/*                                 CHARACTER TAB                                            */
+/* **************************************************************************************** */
+
+.characterLevelUpContainer {
+    position: absolute;
+    top: 3px;
+    height: 60px;
+    left: 3px;
+    width: 240px;
+    padding: 0;
+}
+
+.characteristicsHeaderContainer {
+    position: absolute;
+    top: 73px;
+    height: 19px;
+    left: 3px;
+    width: 220px;
+    padding: 5px;
+}
+
+.characteristicsHeaderSpan {
+    background-color: #2B2B32;
+    color: #FFF;
+    margin: 2px 0 0;
+    padding: 4px 7px;
+    width:120px;
+    text-align: center;
+}
+
+.characterPropertiesContainer {
+    position: absolute;
+    top: 103px;
+    bottom: 3px;
+    left: 3px;
+    padding-left: 3px;
+    padding-right: 3px;
+    width: 190px;
+    border: 1px solid #2B2B32;
+}
+
+.characterTabContainer {
+    position: absolute;
+    top: 73px;
+    bottom: 3px;
+    left: 204px;
+    right: 3px;
+    padding: 3px;
+}
+
+.characteristicsTable {
+    margin-top:10px;
+    width:100%;
+}
+
+.characteristicsTableLabel {
+    text-align:right;
+    width: 110px;
+}
+
+
+
+
+/* **************************************************************************************** */
+/*                                     INFO TAB                                             */
+/* **************************************************************************************** */
+
+.infoTabGameCredits {
+    position: absolute;
+    bottom: 3px;
+    left: 3px;
+    right: 310px;
+    height: 80px;
+
+    padding: 5px;
+    border: 1px solid #2B2B32;
+}
+
+.infoTabMinmaxiaLinks {
+    position: absolute;
+    bottom: 99px;
+    left: 3px;
+    right: 310px;
+    height: 100px;
+
+    padding: 5px;
+    border: 1px solid #2B2B32;
+}
+
+.infoTabGameOptions {
+    position: absolute;
+    bottom: 3px;
+    right: 3px;
+    width: 292px;
+    height: 196px;
+    overflow-y: scroll;
+
+    padding: 5px;
+    border: 1px solid #2B2B32;
+}
+
+.infoTabRecentChanges {
+    position: absolute;
+    top: 228px;
+    left: 3px;
+    right: 505px;
+    height: 232px;
+
+    overflow-y: scroll;
+
+    padding: 5px;
+    border: 1px solid #2B2B32;
+}
+
+.infoTabInfo {
+    position: absolute;
+    top: 228px;
+    width: 487px;
+    right: 3px;
+    height: 232px;
+
+    overflow-y: scroll;
+
+    padding: 5px;
+    border: 1px solid #2B2B32;
+}
+
+.infoTabSaveLoadContainer {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    right: 350px;
+    height: 210px;
+
+    overflow-y: scroll;
+
+    padding: 5px;
+    border: 1px solid #2B2B32;
+}
+
+.infoTabStatisticsContainer {
+    position: absolute;
+    top: 3px;
+    width: 333px;
+    right: 3px;
+    height: 210px;
+
+    overflow-y: scroll;
+
+    padding: 5px;
+    border: 1px solid #2B2B32;
+}
+
+.statisticsTable {
+    margin-top:10px;
+    width:100%;
+}
+
+.statisticsTableLabel {
+    text-align:right;
+    width: 120px;
+}
+
+
+/* **************************************************************************************** */
+/*                                     GAME OVER                                            */
+/* **************************************************************************************** */
+
+.gameOverContentsDiv {
+    position:absolute;
+    top:115px;
+    left:45px;
+    right:45px;
+    bottom:45px;
+}
+
+.gameOverTableTopRow {
+    position:absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 39px;
+}
+.gameOverTableBottomRow {
+    position:absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 39px;
+}
+
+.gameOverHeading {
+    font-size: 18px;
+    width: 300px;
+    padding: 10px;
+    margin: 5px auto;
+    color: yellow;
+}
+
+.gameOverSubHeading {
+    font-size: 16px;
+    width: 300px;
+    padding: 10px;
+    margin: 5px auto;
+}
+
+.gameOverBlurb {
+    padding: 10px;
+    width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.gameOverBonus {
+    color: #3AA5E6;
+}
+
+
+/* **************************************************************************************** */
+/*                                         OFFLINE TAB                                      */
+/* **************************************************************************************** */
+
+.offlineHeader {
+    position:absolute;
+    top: 125px;
+    left: 0;
+    height: 55px;
+    width: 100%;
+    text-align: center;
+}
+
+.offlineTitleText {
+    font-size: 15px;
+}
+.offlineSubHeader {
+    font-size: 13px;
+}
+.offlineSubHeader {
+    font-size: 13px;
+}
+
+.offlineProgressBarContainer {
+    position:absolute;
+    top: 200px;
+    left: 0;
+    height: 55px;
+    width: 100%;
+}
+
+.offlineProgressBar {
+    border: 1px solid #FA0;
+    margin-left: auto;
+    margin-right: auto;
+    width: 500px;
+    height: 100%;
+}
+
+.offlineProgressSlider {
+    position: relative;
+    top: 0;
+    left: 0;
+    height: 100%;
+    background-color: #FA0;
+    width: 0;
+}
+
+.offlineProgressStatsContainer {
+    position:absolute;
+    top: 270px;
+    left: 0;
+    height: 150px;
+    width: 100%;
+}
+
+.offlineCancelButtonContainer {
+    position:absolute;
+    top: 450px;
+    left: 0;
+    height: 55px;
+    width: 100%;
+}
+
+.offlineCancelButton {
+    display: block;
+    position: relative;
+    margin-left: auto;
+    margin-right: auto;
+    padding:10px;
+    width: 300px;
+    border: 1px solid #3AA5E6;
+    text-align: center;
+    cursor: default;
+    background-color: transparent;
+    z-index: 100;
+}
+
+.offlineCancelButton:hover {
+    background-color: #2B2B32;
+    cursor: pointer;
+}
+
+.offlineCancelButton:active {
+    top: 1px;
+    bottom: -1px;
+    cursor: pointer;
+}
+
+
+/* **************************************************************************************** */
+/* Save Button                                                                              */
+/* **************************************************************************************** */
+
+.buttonNoteDiv {
+    padding: 5px;
+    font-weight: normal;
+    text-align: center;
+    float: left;
+}
+
+.saveButtonContainer {
+    overflow: hidden; /* make the div respect the height of the floating upgrade buttons. */
+    padding:2px;
+    margin:0;
+}
+
+.exportImportSaveContainer {
+    display: none;
+    padding: 5px;
+    margin:0;
+    overflow: hidden; /* make the div respect the height of the floating upgrade buttons. */
+}
+
+.saveButton {
+    padding:3px;
+    border: 1px solid #3AA5E6;
+    text-align: center;
+    cursor: pointer;
+    width: 100px;
+}
+
+.saveButton:hover {
+    background-color: #2B2B32;
+    cursor: pointer;
+}
+
+.saveButton:active {
+    position: relative;
+    top: 1px;
+    cursor: pointer;
+}
+
+
+
+
+/* =========================================================
+   CLEAN REWRITE ADDITIONS
+   ========================================================= */
+
+/* Hero info bars in game tab bottom panel */
+.gameTabAdventurerInfo {
+    position: absolute;
+    width: 730px;
+    height: 42px;
+    background: #0b0b12;
+    border: 1px solid #2b2b32;
+    box-sizing: border-box;
+}
+
+.heroRow {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 5px 1px;
+    height: 16px;
+}
+
+.heroName {
+    font-weight: bold;
+    font-size: 12px;
+}
+
+.heroClass {
+    color: #8af;
+    font-size: 11px;
+}
+
+.heroTag {
+    font-size: 10px;
+    padding: 1px 3px;
+    border-radius: 2px;
+}
+
+.stunTag  { background: #542; color: #fa0; }
+.stealthTag { background: #224; color: #aaf; }
+.rageTag  { background: #522; color: #f44; }
+
+.statBars {
+    display: flex;
+    gap: 4px;
+    padding: 1px 5px 3px;
+}
+
+.barWrap {
+    flex: 1;
+    position: relative;
+    height: 14px;
+    background: #111;
+    border: 1px solid #2b2b32;
+    overflow: hidden;
+}
+
+.barFill {
+    position: absolute;
+    top: 0; left: 0;
+    height: 100%;
+    transition: width 0.15s linear;
+}
+
+.barLabel {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    text-align: center;
+    font-size: 10px;
+    line-height: 14px;
+    color: #fff;
+    z-index: 1;
+    text-shadow: 1px 1px 2px #000;
+}
+
+/* Dungeon list entries */
+.dungeonEntry {
+    padding: 5px 8px;
+    border-bottom: 1px solid #2b2b32;
+    line-height: 1.7;
+    font-size: 12px;
+}
+
+.dungeonEntry:hover {
+    background: #111;
+}
+
+/* Achievement entries */
+.achievementEntry {
+    padding: 5px 8px;
+    border-bottom: 1px solid #2b2b32;
+    font-size: 12px;
+}
+
+.achievementEntry.achievementUnlocked {
+    background: #120f00;
+}
+
+/* Stats table */
+.statsTable {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 5px;
+}
+
+.statsTable td {
+    padding: 2px 5px;
+    border-bottom: 1px solid #1a1a22;
+}
+
+.heroStatBlock {
+    border: 1px solid #2b2b32;
+    padding: 5px;
+    margin-top: 8px;
+    margin-bottom: 5px;
+}
+
+/* Combat log area needs space above bottom panel */
+#combatLog {
+    font-size: 11px;
+    line-height: 1.5;
+}
+
+/* Game tab bottom panel - push down to make room for 400px log */
+.gameTabBottomPanel {
+    top: 410px !important;
+    left: 3px;
+    bottom: 3px;
+    width: 730px;
+}
+
+/* Encounter notification - sits just above bottom panel */
+.encounterNotificationPanel {
+    top: 392px !important;
 }

@@ -1,1263 +1,1496 @@
-// ============================================================
-// CONSTANTS
-// ============================================================
-const TURN_INTERVAL = 250;
-const PASSIVE_TICK_INTERVAL = 1000;
-const MAX_OFFLINE_HOURS = 12;
-const TILE_SIZE = 32;
-const ROOM_MIN_SIZE = 6;
-const ROOM_MAX_SIZE = 12;
-const MOVE_SPEED = 0.15;
-const ATTACK_RANGE = 1.5;
-
-const CLASS_DEFINITIONS = {
-    fighter:   { name: 'Fighter',   role: 'Tank',       sprite: '🛡️', baseStats: { dmg: 6, atk: 10, arm: 10, def: 12, hp: 130 }, healthPerLevel: 16, spiritPerLevel: 3 },
-    barbarian: { name: 'Barbarian', role: 'Bruiser',    sprite: '⚔️', baseStats: { dmg: 12, atk: 12, arm: 6, def: 8, hp: 110 }, healthPerLevel: 14, spiritPerLevel: 4 },
-    rogue:     { name: 'Rogue',      role: 'Assassin',   sprite: '🗡️', baseStats: { dmg: 9, atk: 16, arm: 4, def: 12, hp: 80 }, healthPerLevel: 9, spiritPerLevel: 5 },
-    priest:    { name: 'Priest',     role: 'Healer',     sprite: '✝️', baseStats: { dmg: 4, atk: 8, arm: 3, def: 8, hp: 70 }, healthPerLevel: 8, spiritPerLevel: 14 },
-    druid:     { name: 'Druid',      role: 'Summoner',   sprite: '🌿', baseStats: { dmg: 6, atk: 10, arm: 5, def: 9, hp: 90 }, healthPerLevel: 11, spiritPerLevel: 8 },
-    electromancer: { name: 'Electromancer', role: 'Mage', sprite: '⚡', baseStats: { dmg: 16, atk: 18, arm: 2, def: 6, hp: 60 }, healthPerLevel: 6, spiritPerLevel: 15 },
-    pyromancer: { name: 'Pyromancer', role: 'Mage',      sprite: '🔥', baseStats: { dmg: 15, atk: 16, arm: 2, def: 6, hp: 60 }, healthPerLevel: 6, spiritPerLevel: 14 },
-    archer:    { name: 'Archer',     role: 'Ranged',     sprite: '🏹', baseStats: { dmg: 13, atk: 17, arm: 3, def: 9, hp: 75 }, healthPerLevel: 10, spiritPerLevel: 6 }
-};
-
-const NODE_DEFINITIONS = [
-    { id: 'goblin_territory', name: 'Goblin Territory', icon: '🏔️', level: 1,
-      castle: { name: "Goblin King's Lair", boss: { name: 'Goblin King', sprite: '👑', stats: { dmg: 10, atk: 15, arm: 5, def: 10, hp: 200 }, gold: 250, xp: 150 } },
-      dungeons: [
-          { id: 'goblin_cave', name: 'Goblin Cave', icon: '🕳️', level: 1, cost: 100, killRate: 0.5, goldPerKill: 6, xpPerKill: 12 },
-          { id: 'goblin_camp', name: 'Goblin Camp', icon: '⛺', level: 2, cost: 150, killRate: 0.4, goldPerKill: 9, xpPerKill: 18 }
-      ],
-      unlocks: ['wolf_forest'] },
-    { id: 'wolf_forest', name: 'Wolf Forest', icon: '🌲', level: 5,
-      castle: { name: 'Wolf Den', boss: { name: 'Alpha Wolf', sprite: '🐺', stats: { dmg: 18, atk: 22, arm: 8, def: 14, hp: 350 }, gold: 600, xp: 300 } },
-      dungeons: [
-          { id: 'wolf_den', name: 'Wolf Den', icon: '🐺', level: 5, cost: 400, killRate: 0.4, goldPerKill: 15, xpPerKill: 30 },
-          { id: 'spider_nest', name: 'Spider Nest', icon: '🕷️', level: 7, cost: 600, killRate: 0.3, goldPerKill: 22, xpPerKill: 45 }
-      ],
-      unlocks: ['undead_crypts'] },
-    { id: 'undead_crypts', name: 'Undead Crypts', icon: '💀', level: 10,
-      castle: { name: 'Lich Tower', boss: { name: 'Ancient Lich', sprite: '💀', stats: { dmg: 30, atk: 32, arm: 12, def: 28, hp: 550 }, gold: 1800, xp: 800 } },
-      dungeons: [
-          { id: 'skeleton_tombs', name: 'Skeleton Tombs', icon: '⚰️', level: 10, cost: 1200, killRate: 0.3, goldPerKill: 30, xpPerKill: 60 },
-          { id: 'zombie_pit', name: 'Zombie Pit', icon: '🧟', level: 12, cost: 1500, killRate: 0.25, goldPerKill: 45, xpPerKill: 85 },
-          { id: 'ghost_hall', name: 'Ghost Hall', icon: '👻', level: 14, cost: 2000, killRate: 0.2, goldPerKill: 65, xpPerKill: 110 }
-      ],
-      unlocks: ['orc_stronghold', 'demon_realm'] }
-];
-
-const MONSTER_TEMPLATES = {
-    goblin: { name: 'Goblin', sprite: '👺', stats: { dmg: 4, atk: 6, arm: 1, def: 4, hp: 25 } },
-    wolf:    { name: 'Wolf',   sprite: '🐺', stats: { dmg: 6, atk: 9, arm: 2, def: 6, hp: 40 } },
-    spider:  { name: 'Spider', sprite: '🕷️', stats: { dmg: 8, atk: 11, arm: 2, def: 7, hp: 45 } },
-    skeleton:{ name: 'Skeleton', sprite: '💀', stats: { dmg: 12, atk: 13, arm: 4, def: 9, hp: 60 } },
-    zombie:  { name: 'Zombie', sprite: '🧟', stats: { dmg: 14, atk: 11, arm: 6, def: 7, hp: 100 } },
-    ghost:   { name: 'Ghost',  sprite: '👻', stats: { dmg: 18, atk: 16, arm: 0, def: 22, hp: 55 } },
-    orc:     { name: 'Orc',    sprite: '👹', stats: { dmg: 22, atk: 15, arm: 9, def: 12, hp: 130 } },
-    demon:   { name: 'Demon',  sprite: '😈', stats: { dmg: 30, atk: 24, arm: 12, def: 17, hp: 200 } },
-    dragon:  { name: 'Dragon', sprite: '🐉', stats: { dmg: 40, atk: 28, arm: 18, def: 20, hp: 300 } }
-};
-
-const SCROLLS = [
-    { name: 'Fire Scroll', damage: 50, icon: '🔥', key: '1' },
-    { name: 'Ice Scroll', damage: 40, icon: '❄️', key: '2' },
-    { name: 'Lightning Scroll', damage: 60, icon: '⚡', key: '3' },
-    { name: 'Poison Scroll', damage: 35, icon: '☠️', key: '4' },
-    { name: 'Holy Scroll', damage: 45, icon: '✨', key: '5' },
-    { name: 'Death Scroll', damage: 100, icon: '💀', key: '6' }
-];
-
-const POTIONS = [
-    { name: 'Speed Potion', duration: 30, effect: 'speed', icon: '🏃' },
-    { name: 'Strength Potion', duration: 30, effect: 'strength', icon: '💪' },
-    { name: 'Gold Find Potion', duration: 30, effect: 'goldFind', icon: '💰' },
-    { name: 'Double Gold', duration: 30, effect: 'doubleGold', icon: '💎' },
-    { name: 'Double Drops', duration: 30, effect: 'doubleDrops', icon: '🎁' },
-    { name: 'Invincibility Potion', duration: 15, effect: 'invincible', icon: '🛡️' },
-    { name: 'Docile Monsters', duration: 20, effect: 'docileMonsters', icon: '😴' },
-    { name: 'Infinite Scrolls', duration: 30, effect: 'infiniteScrolls', icon: '📜' }
-];
-
-const ITEM_TYPES = {
-    WEAPON: ['Sword', 'Axe', 'Bow', 'Staff', 'Dagger'],
-    ARMOR:  ['Helmet', 'Chest', 'Legs', 'Boots', 'Gloves'],
-    ACCESSORY: ['Ring', 'Amulet', 'Belt']
-};
-const ITEM_RARITY = {
-    COMMON:    { name: 'Common',    color: '#9ca3af', mult: 1.0 },
-    UNCOMMON:  { name: 'Uncommon',  color: '#22c55e', mult: 1.5 },
-    RARE:      { name: 'Rare',      color: '#3b82f6', mult: 2.0 },
-    LEGENDARY: { name: 'Legendary', color: '#f59e0b', mult: 3.0 }
-};
-
-const PRESTIGE_UPGRADES = [
-    { id: 'extra_slot', name: 'Extra Character Slot', desc: '+1 party slot', cost: 10, max: 4 },
-    { id: 'cooldown_red', name: 'Swift Skills', desc: '-10% cooldowns', cost: 15, max: 5 },
-    { id: 'farm_speed', name: 'Efficient Farms', desc: '+20% farm kill rate', cost: 20, max: 5 },
-    { id: 'gold_bonus', name: 'Golden Touch', desc: '+10% gold', cost: 12, max: 5 },
-    { id: 'xp_bonus', name: 'Quick Learner', desc: '+10% XP', cost: 12, max: 5 }
-];
-
-const ACHIEVEMENTS = [
-    { id: 'first_blood', name: 'First Blood', desc: 'Kill first enemy', req: 1, ap: 1 },
-    { id: 'monster_slayer', name: 'Monster Slayer', desc: 'Kill 100 enemies', req: 100, ap: 5 },
-    { id: 'legendary_hunter', name: 'Legendary Hunter', desc: 'Kill 1000 enemies', req: 1000, ap: 20 },
-    { id: 'gold_hoarder', name: 'Gold Hoarder', desc: 'Earn 10k gold', req: 10000, ap: 3 },
-    { id: 'castle_conqueror', name: 'Castle Conqueror', desc: 'Beat 3 bosses', req: 3, ap: 15 },
-    { id: 'first_prestige', name: 'New Beginning', desc: 'Prestige once', req: 1, ap: 25 }
-];
+'use strict';
 
 // ============================================================
-// UTILITIES
+// CLICKPOCALYPSE 2 - Clean Rewrite
 // ============================================================
-function generateId() { return Math.random().toString(36).substr(2, 9); }
-function randomRange(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
-function randomPick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
-function formatNumber(n) {
-    if (n >= 1e6) return (n/1e6).toFixed(1)+'M';
-    if (n >= 1e3) return (n/1e3).toFixed(1)+'K';
-    return Math.floor(n).toString();
+
+const CFG = {
+    TICK_MS: 250,
+    REGEN_TICKS: 3,
+    HP_REGEN_RATE: 0.008,
+    SP_REGEN_RATE: 0.015,
+    STUN_TICKS: 20,
+    SAVE_INTERVAL: 240,
+    UI_UPDATE_INTERVAL: 2,
+    TRAVEL_TICKS: 32,
+    ROOM_CLEAR_DELAY: 6,
+    LOG_MAX: 60,
+};
+
+// ===== CHARACTER CLASSES =====
+const CLASSES = [
+    {
+        id: 'fighter', name: 'Fighter',
+        desc: 'Well-rounded warrior with high defense and a shield block.',
+        baseHP: 120, baseSP: 40,
+        baseAtk: 12, baseDef: 12, baseDmg: 10, baseArmor: 5,
+        baseCrit: 0.05, baseSpeed: 4,
+        abilities: ['shieldBlock'], isRanged: false,
+    },
+    {
+        id: 'ranger', name: 'Ranger',
+        desc: 'Attacks from range with a bow. Occasional multi-shot.',
+        baseHP: 90, baseSP: 60,
+        baseAtk: 14, baseDef: 8, baseDmg: 12, baseArmor: 2,
+        baseCrit: 0.08, baseSpeed: 5,
+        abilities: ['multiShot'], isRanged: true,
+    },
+    {
+        id: 'rogue', name: 'Rogue',
+        desc: 'Vanishes into shadows for devastating backstabs.',
+        baseHP: 80, baseSP: 70,
+        baseAtk: 16, baseDef: 8, baseDmg: 14, baseArmor: 1,
+        baseCrit: 0.20, baseSpeed: 3,
+        abilities: ['stealth', 'poisonBlade'], isRanged: false,
+    },
+    {
+        id: 'priest', name: 'Priest',
+        desc: 'Heals the party and delivers holy smites.',
+        baseHP: 85, baseSP: 100,
+        baseAtk: 8, baseDef: 8, baseDmg: 8, baseArmor: 2,
+        baseCrit: 0.03, baseSpeed: 5,
+        abilities: ['heal', 'holySmite'], isRanged: true,
+    },
+    {
+        id: 'pyromancer', name: 'Pyromancer',
+        desc: 'Unleashes devastating fire spells that ignore armor.',
+        baseHP: 70, baseSP: 120,
+        baseAtk: 10, baseDef: 6, baseDmg: 18, baseArmor: 0,
+        baseCrit: 0.10, baseSpeed: 7,
+        abilities: ['fireball'], isRanged: true,
+    },
+    {
+        id: 'electromancer', name: 'Electromancer',
+        desc: 'Chains lightning between multiple enemies.',
+        baseHP: 70, baseSP: 120,
+        baseAtk: 10, baseDef: 6, baseDmg: 15, baseArmor: 0,
+        baseCrit: 0.12, baseSpeed: 7,
+        abilities: ['lightning', 'chainLightning'], isRanged: true,
+    },
+    {
+        id: 'necromancer', name: 'Necromancer',
+        desc: 'Summons skeleton minions and drains life.',
+        baseHP: 75, baseSP: 110,
+        baseAtk: 9, baseDef: 6, baseDmg: 10, baseArmor: 0,
+        baseCrit: 0.05, baseSpeed: 8,
+        abilities: ['summonSkeleton', 'deathCoil'], isRanged: true,
+    },
+    {
+        id: 'barbarian', name: 'Barbarian',
+        desc: 'Rages into battle dealing massive melee damage.',
+        baseHP: 150, baseSP: 30,
+        baseAtk: 10, baseDef: 8, baseDmg: 16, baseArmor: 3,
+        baseCrit: 0.07, baseSpeed: 3,
+        abilities: ['rage', 'whirlwind'], isRanged: false,
+    },
+    {
+        id: 'druid', name: 'Druid',
+        desc: 'Commands nature and transforms into a bear.',
+        baseHP: 95, baseSP: 90,
+        baseAtk: 11, baseDef: 10, baseDmg: 12, baseArmor: 3,
+        baseCrit: 0.06, baseSpeed: 5,
+        abilities: ['entangle', 'heal'], isRanged: false,
+    },
+    {
+        id: 'ninja', name: 'Ninja',
+        desc: 'Fastest attacker in the land with brutal crits.',
+        baseHP: 75, baseSP: 80,
+        baseAtk: 18, baseDef: 10, baseDmg: 13, baseArmor: 1,
+        baseCrit: 0.25, baseSpeed: 2,
+        abilities: ['stealth', 'poisonBlade'], isRanged: false,
+    },
+    {
+        id: 'chickenKing', name: 'Chicken King',
+        desc: 'Somehow incredibly deadly. Nobody knows why.',
+        baseHP: 100, baseSP: 50,
+        baseAtk: 20, baseDef: 5, baseDmg: 9, baseArmor: 0,
+        baseCrit: 0.15, baseSpeed: 1,
+        abilities: ['crowCall'], isRanged: false,
+    },
+];
+
+// ===== MONSTER DATABASE =====
+const MONSTER_TEMPLATES = [
+    { name: 'Goblin',      tier: 1, hpM: 0.8,  dmgM: 0.8,  xp: 5,   gold: 3   },
+    { name: 'Orc',         tier: 1, hpM: 1.0,  dmgM: 1.0,  xp: 8,   gold: 5   },
+    { name: 'Skeleton',    tier: 1, hpM: 0.9,  dmgM: 0.9,  xp: 6,   gold: 4   },
+    { name: 'Kobold',      tier: 1, hpM: 0.7,  dmgM: 1.1,  xp: 7,   gold: 4   },
+    { name: 'Troll',       tier: 2, hpM: 1.5,  dmgM: 1.2,  xp: 15,  gold: 10  },
+    { name: 'Dark Mage',   tier: 2, hpM: 0.8,  dmgM: 1.8,  xp: 18,  gold: 12  },
+    { name: 'Vampire',     tier: 2, hpM: 1.2,  dmgM: 1.4,  xp: 20,  gold: 15  },
+    { name: 'Werewolf',    tier: 2, hpM: 1.3,  dmgM: 1.3,  xp: 17,  gold: 11  },
+    { name: 'Golem',       tier: 3, hpM: 2.0,  dmgM: 1.0,  xp: 30,  gold: 20  },
+    { name: 'Demon',       tier: 3, hpM: 1.5,  dmgM: 1.6,  xp: 35,  gold: 25  },
+    { name: 'Lich',        tier: 3, hpM: 1.2,  dmgM: 2.0,  xp: 40,  gold: 30  },
+    { name: 'Harpy',       tier: 3, hpM: 1.0,  dmgM: 1.7,  xp: 32,  gold: 22  },
+    { name: 'Dragon',      tier: 4, hpM: 3.0,  dmgM: 2.0,  xp: 80,  gold: 60  },
+    { name: 'Titan',       tier: 4, hpM: 3.5,  dmgM: 1.8,  xp: 90,  gold: 70  },
+    { name: 'Ancient Dragon', tier: 5, hpM: 5.0, dmgM: 3.0, xp: 200, gold: 150 },
+    { name: 'Demon Lord',  tier: 5, hpM: 4.0,  dmgM: 3.5,  xp: 250, gold: 200 },
+];
+
+const BOSS_TEMPLATES = [
+    { name: 'Dungeon Overlord', hpM: 4.5, dmgM: 2.0, xp: 100,  gold: 80,  isBoss: true },
+    { name: 'Ancient Lich',     hpM: 5.0, dmgM: 2.5, xp: 150,  gold: 120, isBoss: true },
+    { name: 'Dragon Lord',      hpM: 6.0, dmgM: 3.0, xp: 200,  gold: 180, isBoss: true },
+    { name: 'Demon Prince',     hpM: 7.0, dmgM: 3.5, xp: 300,  gold: 250, isBoss: true },
+    { name: 'Chaos Titan',      hpM: 10,  dmgM: 4.0, xp: 500,  gold: 400, isBoss: true },
+];
+
+// ===== ACHIEVEMENT DEFINITIONS =====
+const ACHIEVEMENT_DEFS = [
+    { id: 'kills100',       name: '100 Kills',           type: 'kills',            threshold: 100,    reward: 5  },
+    { id: 'kills1k',        name: '1,000 Kills',         type: 'kills',            threshold: 1000,   reward: 15 },
+    { id: 'kills10k',       name: '10,000 Kills',        type: 'kills',            threshold: 10000,  reward: 50 },
+    { id: 'kills100k',      name: '100,000 Kills',       type: 'kills',            threshold: 100000, reward: 150},
+    { id: 'dungeon1',       name: 'First Blood',         type: 'dungeonsCleared',  threshold: 1,      reward: 10 },
+    { id: 'dungeon10',      name: 'Dungeon Delver',      type: 'dungeonsCleared',  threshold: 10,     reward: 30 },
+    { id: 'dungeon25',      name: 'Dungeon Master',      type: 'dungeonsCleared',  threshold: 25,     reward: 80 },
+    { id: 'dungeon35',      name: 'World Conqueror',     type: 'dungeonsCleared',  threshold: 35,     reward: 200},
+    { id: 'castle1',        name: 'Castle Owner',        type: 'castlesConquered', threshold: 1,      reward: 20 },
+    { id: 'castle5',        name: 'Land Baron',          type: 'castlesConquered', threshold: 5,      reward: 60 },
+    { id: 'castle15',       name: 'Kingdom Builder',     type: 'castlesConquered', threshold: 15,     reward: 150},
+    { id: 'castle35',       name: 'Emperor',             type: 'castlesConquered', threshold: 35,     reward: 500},
+    { id: 'gold1k',         name: 'Wealthy',             type: 'goldEarned',       threshold: 1000,   reward: 8  },
+    { id: 'gold10k',        name: 'Rich',                type: 'goldEarned',       threshold: 10000,  reward: 25 },
+    { id: 'gold100k',       name: 'Filthy Rich',         type: 'goldEarned',       threshold: 100000, reward: 80 },
+    { id: 'level10',        name: 'Veteran',             type: 'maxLevel',         threshold: 10,     reward: 15 },
+    { id: 'level25',        name: 'Champion',            type: 'maxLevel',         threshold: 25,     reward: 50 },
+    { id: 'level50',        name: 'Legend',              type: 'maxLevel',         threshold: 50,     reward: 150},
+    { id: 'level100',       name: 'Immortal',            type: 'maxLevel',         threshold: 100,    reward: 400},
+    { id: 'minions50',      name: 'Minion Master',       type: 'minionsSummoned',  threshold: 50,     reward: 20 },
+    { id: 'minions500',     name: 'Army of Darkness',    type: 'minionsSummoned',  threshold: 500,    reward: 60 },
+    { id: 'spells1k',       name: 'Spell Slinger',       type: 'spellsCast',       threshold: 1000,   reward: 30 },
+    { id: 'crits500',       name: 'Critical Fiend',      type: 'criticalHits',     threshold: 500,    reward: 25 },
+];
+
+// ===== DUNGEON DEFINITIONS =====
+const DUNGEON_NAMES = [
+    'Goblin Cave','Dark Forest','Ruined Temple','Forgotten Mine','Haunted Crypt',
+    'Troll Bridge','Orc Fortress','Vampire Tower','Witch Lair','Dragon Cavern',
+    'Demon Gateway','Lich Citadel','Cursed Village','Shadow Realm','Frost Dungeon',
+    'Fire Pits','Poison Swamp','Death Valley','Ancient Tomb','Storm Peak',
+    'Blood Castle','Chaos Dungeon','Abyss Gate','Nether Keep','Dark Sanctum',
+    'Bone Pit','Plague Tower','Sin Citadel','Void Temple','Eternal Dark',
+    'Infernal Lair','Soul Prison','Hell Gate','Oblivion Keep','The Final Dungeon',
+];
+
+function buildDungeons() {
+    return DUNGEON_NAMES.map((name, i) => ({
+        id: i,
+        name,
+        level: Math.max(1, Math.floor(i * 2.5 + 1)),
+        rooms: 3 + Math.floor(i / 5),
+        cleared: false,
+        castlePurchased: false,
+        castleCost: Math.floor(100 * Math.pow(1.5, i)),
+        farmActive: false,
+        farmKillRate: 0,
+    }));
 }
-function distance(p1, p2) {
-    return Math.hypot(p1.x - p2.x, p1.y - p2.y);
-}
-function findNearest(from, positions) {
-    let min = Infinity, idx = 0;
-    positions.forEach((p, i) => {
-        const d = distance(from, p);
-        if (d < min) { min = d; idx = i; }
-    });
-    return { index: idx, distance: min };
-}
-function xpForLevel(level) { return Math.floor(100 * Math.pow(1.5, level - 1)); }
 
-// ============================================================
-// GAME STATE
-// ============================================================
-const GameState = {
-    gold: 100,
-    ap: 0,
+// ===== MONSTER UPGRADES =====
+const UPGRADE_DEFS = [
+    {
+        id: 'goldChance', name: 'Gold Drop Chance',
+        baseCost: 50, costMult: 1.4,
+        apply: (u, lv) => { u.goldChance = 0.005 + lv * 0.002; },
+        fmt: (u) => `${(u.goldChance * 100).toFixed(2)}%`,
+    },
+    {
+        id: 'maxGold', name: 'Max Gold Per Drop',
+        baseCost: 80, costMult: 1.5,
+        apply: (u, lv) => { u.maxGold = 20 + lv * 10; },
+        fmt: (u) => `${u.maxGold} g`,
+    },
+    {
+        id: 'minGold', name: 'Min Gold Per Drop',
+        baseCost: 60, costMult: 1.6,
+        apply: (u, lv) => { u.minGold = lv * 2; },
+        fmt: (u) => `${u.minGold} g`,
+    },
+    {
+        id: 'itemChance', name: 'Item Drop Chance',
+        baseCost: 100, costMult: 1.5,
+        apply: (u, lv) => { u.itemChance = 0.009 + lv * 0.003; },
+        fmt: (u) => `${(u.itemChance * 100).toFixed(2)}%`,
+    },
+    {
+        id: 'xpBonus', name: 'XP Multiplier',
+        baseCost: 200, costMult: 2.0,
+        apply: (u, lv) => { u.xpMult = 1.0 + lv * 0.1; },
+        fmt: (u) => `${u.xpMult.toFixed(1)}x`,
+    },
+];
+
+// ===== GAME STATE =====
+const G = {
+    paused: false,
+    tick: 0,
+    started: false,
+    activeTab: 'game',
+
+    gold: 0,
+    kills: 0,
+    goldEarned: 0,
+    adventurePoints: 0,
+
     party: [],
-    partyLocked: false,
-    nodes: {},
-    currentDungeon: null,
-    currentRoomIdx: 0,
+
+    dungeons: [],
+    currentDungeonIdx: -1,
+    currentRoom: 0,
+    traveling: false,
+    travelTicks: 0,
+    nextDungeonIdx: 0,
+    roomDelay: 0,
+
     monsters: [],
-    loot: [],
-    inventory: [],
-    scrolls: SCROLLS.map(s => ({ ...s, count: 0 })),
-    potions: POTIONS.map(p => ({ ...p, count: 0 })),
-    activePotions: [],
-    prestige: {},
+    inCombat: false,
+
     achievements: {},
-    totalKills: 0,
-    totalGold: 0,
-    bossesDefeated: 0,
-    paused: true,
-    showFps: false,
-    passive: { kills:0, gold:0, xp:0 },
-    turn: 0,
-    lastSave: Date.now(),
-    floating: []
+    dungeonsCleared: 0,
+    castlesConquered: 0,
+    minionsSummoned: 0,
+
+    upgrades: {
+        goldChance: 0.005, maxGold: 20, minGold: 0,
+        itemChance: 0.009, xpMult: 1.0,
+    },
+    upgradeLevels: {},
+
+    stats: {
+        meleeAttacks: 0, rangedAttacks: 0,
+        spellsCast: 0, criticalHits: 0, timesStunned: 0,
+    },
+
+    combatLog: [],
+    settings: { offlineProcessing: true },
 };
 
-// ============================================================
-// CLASSES
-// ============================================================
-class Character {
-    constructor(cls, id) {
-        const def = CLASS_DEFINITIONS[cls];
-        this.id = id;
-        this.class = cls;
-        this.name = def.name;
-        this.sprite = def.sprite;
-        this.level = 1;
-        this.xp = 0;
-        this.xpNext = xpForLevel(2);
-        this.hp = def.baseStats.hp;
-        this.maxHp = def.baseStats.hp;
-        this.base = { ...def.baseStats };
-        this.equipment = {};
-        this.skillPoints = 0;
-        this.stunned = 0;
-        this.cooldown = 0;
-        this.pos = { x: 0, y: 0 };
-        this.stats = { kills:0, dmgDealt:0, dmgTaken:0, crits:0 };
-        this.hpPerLevel = def.healthPerLevel;
-    }
+// ===== UTILITY =====
+const randInt = (lo, hi) => Math.floor(Math.random() * (hi - lo + 1)) + lo;
+const randF = () => Math.random();
 
-    gainXP(amt) {
-        this.xp += amt;
-        while (this.xp >= this.xpNext) {
-            this.xp -= this.xpNext;
-            this.level++;
-            this.skillPoints++;
-            this.xpNext = xpForLevel(this.level + 1);
-            this.maxHp += this.hpPerLevel;
-            this.hp = this.maxHp;
-            Game.recalcStats(this);
-        }
-    }
-
-    takeDamage(amt) {
-        if (GameState.activePotions.some(p => p.effect === 'invincible')) return 0;
-        const dmg = Math.max(1, Math.floor(amt));
-        this.hp -= dmg;
-        this.stats.dmgTaken += dmg;
-        if (this.hp <= 0) { this.hp = 0; this.stunned = 20; }
-        return dmg;
-    }
-
-    attack(target) {
-        if (this.cooldown > 0) return null;
-        const stats = Game.totalStats(this);
-        const hit = Math.random() < stats.atk / (stats.atk + target.defense);
-        if (!hit) return { hit: false };
-        const crit = Math.random() < 0.05 + this.level * 0.002;
-        let dmg = stats.dmg;
-        if (!crit) dmg = Math.max(1, dmg - target.armor);
-        else { dmg = Math.floor(dmg * 1.5); this.stats.crits++; }
-        const dealt = target.takeDamage(dmg);
-        this.stats.dmgDealt += dealt;
-        this.cooldown = 4 - (GameState.prestige.cooldown_red || 0);
-        return { hit: true, dmg: dealt, crit };
-    }
-
-    update() {
-        if (this.cooldown > 0) this.cooldown--;
-        if (this.stunned > 0) this.stunned--;
-        if (GameState.turn % 3 === 0 && !this.stunned) {
-            this.hp = Math.min(this.maxHp, this.hp + 1 + (GameState.prestige.healthRegen || 0));
-        }
-    }
+function log(msg, color) {
+    G.combatLog.unshift({ msg, color: color || '#FFF' });
+    if (G.combatLog.length > CFG.LOG_MAX) G.combatLog.length = CFG.LOG_MAX;
 }
 
-class Monster {
-    constructor(level, type) {
-        const t = MONSTER_TEMPLATES[type];
-        this.id = generateId();
-        this.type = type;
-        this.sprite = t.sprite;
-        this.level = level;
-        this.isBoss = false;
-        const mult = Math.pow(1.1, level - 1);
-        this.maxHp = Math.floor(t.stats.hp * mult);
-        this.hp = this.maxHp;
-        this.dmg = Math.floor(t.stats.dmg * mult);
-        this.armor = Math.floor(t.stats.arm * mult);
-        this.atk = Math.floor(t.stats.atk * mult);
-        this.defense = Math.floor(t.stats.def * mult);
-        this.xp = Math.floor(20 * mult);
-        this.pos = { x:0, y:0 };
-        this.cooldown = 0;
-    }
-
-    makeBoss() {
-        this.isBoss = true;
-        this.maxHp *= 5;
-        this.hp = this.maxHp;
-        this.dmg *= 2;
-        this.armor *= 1.5;
-        this.xp *= 10;
-        this.sprite = '💀';
-    }
-
-    takeDamage(amt) {
-        if (GameState.activePotions.some(p => p.effect === 'docileMonsters')) {
-            this.hp = 0;
-            return this.maxHp;
-        }
-        if (GameState.activePotions.some(p => p.effect === 'frailMonsters')) amt *= 2;
-        const dmg = Math.max(1, Math.floor(amt));
-        this.hp -= dmg;
-        return dmg;
-    }
-
-    attack(target) {
-        if (this.cooldown > 0) return null;
-        const hit = Math.random() < this.atk / (this.atk + target.defense);
-        if (!hit) return { hit: false };
-        const dmg = Math.max(1, this.dmg - target.armor);
-        const dealt = target.takeDamage(dmg);
-        this.cooldown = 5;
-        return { hit: true, dmg: dealt };
-    }
-
-    update() { if (this.cooldown > 0) this.cooldown--; }
+function xpForLevel(lv) {
+    return Math.floor(100 * lv * Math.pow(1.15, lv - 1));
 }
 
-// ============================================================
-// ITEM GENERATOR
-// ============================================================
-const ItemGen = {
-    generate(level) {
-        const rarity = this.rollRarity();
-        const cat = randomPick(Object.keys(ITEM_TYPES));
-        const type = randomPick(ITEM_TYPES[cat]);
-        const mult = Math.pow(1.08, level-1) * ITEM_RARITY[rarity].mult;
-        return {
-            id: generateId(),
-            name: `${ITEM_RARITY[rarity].name} ${type}`,
-            type, rarity,
-            dmg: cat==='WEAPON' ? Math.floor(10*mult) : 0,
-            armor: cat==='ARMOR' ? Math.floor(5*mult) : 0,
-            atk: Math.floor(3*mult),
-            def: Math.floor(3*mult),
-            hp: Math.floor(Math.random()*20*mult),
-            value: Math.floor(50*mult)
-        };
-    },
-    rollRarity() {
-        const r = Math.random();
-        if (r < 0.01) return 'LEGENDARY';
-        if (r < 0.05) return 'RARE';
-        if (r < 0.20) return 'UNCOMMON';
-        return 'COMMON';
+// ===== HERO =====
+function createHero(classId, name) {
+    const cls = CLASSES.find(c => c.id === classId);
+    if (!cls) return null;
+    return {
+        id: Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
+        name, classId, className: cls.name,
+        level: 1, xp: 0, xpNeeded: xpForLevel(1),
+
+        maxHP: cls.baseHP, hp: cls.baseHP,
+        maxSP: cls.baseSP, sp: cls.baseSP,
+        atk: cls.baseAtk, def: cls.baseDef,
+        dmg: cls.baseDmg, armor: cls.baseArmor,
+        crit: cls.baseCrit, speed: cls.baseSpeed,
+        isRanged: cls.isRanged,
+        abilities: [...cls.abilities],
+
+        cooldown: 0,
+        stunTicks: 0,
+        stealthed: false,
+        rageActive: false,
+        abilityCDs: {},
+
+        kills: 0, totalDmg: 0, healing: 0,
+        spellsCast: 0, meleeAtks: 0, rangedAtks: 0,
+    };
+}
+
+// ===== MONSTERS =====
+function spawnMonster(template, dungLv, isBoss) {
+    const scale = 1 + (dungLv - 1) * 0.3;
+    const hp = Math.max(5, Math.floor(30 * template.hpM * scale));
+    const dmg = Math.max(1, Math.floor(8 * template.dmgM * scale));
+    return {
+        id: Date.now().toString(36) + Math.random().toString(36).slice(2),
+        name: template.name + (isBoss ? ' ☠' : ''),
+        isBoss: !!isBoss,
+        maxHP: hp, hp,
+        atk: Math.floor(8 * scale), def: Math.floor(6 * scale),
+        dmg, armor: Math.floor(2 * template.hpM * scale),
+        crit: 0.05, speed: isBoss ? 3 : 4,
+        cooldown: randInt(0, 3),
+        stunTicks: 0,
+        poison: null,
+        xpReward: Math.floor(template.xp * scale * G.upgrades.xpMult),
+        goldReward: template.gold,
+    };
+}
+
+function spawnRoom(dungLv, isLast) {
+    if (isLast) {
+        const bossIdx = Math.min(BOSS_TEMPLATES.length - 1, Math.floor(dungLv / 7));
+        return [spawnMonster(BOSS_TEMPLATES[bossIdx], dungLv, true)];
     }
-};
+    const tierCap = Math.min(5, Math.ceil(dungLv / 7));
+    const pool = MONSTER_TEMPLATES.filter(m => m.tier <= tierCap);
+    const count = randInt(1, 3);
+    return Array.from({ length: count }, () => spawnMonster(pool[randInt(0, pool.length - 1)], dungLv, false));
+}
 
-// ============================================================
-// DUNGEON GENERATOR
-// ============================================================
-const DungeonGen = {
-    generate(nodeDef) {
-        const rooms = [];
-        nodeDef.dungeons.forEach(d => {
-            rooms.push(this.room(nodeDef.level + d.level, false, d.name, d.icon));
-        });
-        rooms.push(this.room(nodeDef.level, true, nodeDef.castle.name, '👑', nodeDef.castle.boss));
-        return { nodeId: nodeDef.id, name: nodeDef.name, level: nodeDef.level, rooms, currentRoom: 0 };
-    },
+// ===== COMBAT CORE =====
 
-    room(level, isBoss, name, icon, bossDef) {
-        const w = randomRange(ROOM_MIN_SIZE, ROOM_MAX_SIZE);
-        const h = randomRange(ROOM_MIN_SIZE, ROOM_MAX_SIZE);
-        const bonus = GameState.activePotions.some(p => p.effect==='moreMonsters') ? 5 : 0;
-        const count = isBoss ? 1 : randomRange(3, 8 + bonus);
-        const monsters = [];
-        for (let i=0; i<count; i++) {
-            const type = randomPick(Object.keys(MONSTER_TEMPLATES));
-            const m = new Monster(level, type);
-            m.pos = { x: randomRange(2, w-2), y: randomRange(2, h-2) };
-            monsters.push(m);
-        }
-        if (isBoss && monsters.length) {
-            monsters[0].makeBoss();
-            if (bossDef) {
-                monsters[0].hp = bossDef.stats.hp;
-                monsters[0].maxHp = bossDef.stats.hp;
-                monsters[0].dmg = bossDef.stats.dmg;
-                monsters[0].atk = bossDef.stats.atk;
-                monsters[0].armor = bossDef.stats.arm;
-                monsters[0].defense = bossDef.stats.def;
-            }
-        }
-        return { name, icon, w, h, monsters, loot: [], cleared: false, isBoss };
+// Returns { hit, crit, damage }
+function resolveHit(attacker, defender) {
+    // Stealth: guaranteed hit, guaranteed crit, double damage
+    if (attacker.stealthed) {
+        attacker.stealthed = false;
+        const dmg = attacker.dmg + randInt(0, attacker.dmg);
+        return { hit: true, crit: true, damage: dmg };
     }
-};
 
-// ============================================================
-// GAME LOGIC
-// ============================================================
-const Game = {
-    init() {
-        this.load();
-        // init nodes
-        NODE_DEFINITIONS.forEach((n,i) => {
-            if (!GameState.nodes[n.id]) {
-                GameState.nodes[n.id] = { unlocked: i===0, beaten: false, dungeons: {} };
-                n.dungeons.forEach(d => GameState.nodes[n.id].dungeons[d.id] = { owned: false, active: false });
-            }
-        });
-        ACHIEVEMENTS.forEach(a => { if (!GameState.achievements[a.id]) GameState.achievements[a.id] = { prog:0, done:false }; });
-        PRESTIGE_UPGRADES.forEach(u => { if (!GameState.prestige[u.id]) GameState.prestige[u.id] = 0; });
+    const atkRoll = randInt(0, attacker.atk);
+    const defRoll = randInt(0, defender.def);
 
-        if (!GameState.party.length && !GameState.partyLocked) UI.showCharModal();
-        else if (GameState.party.length) GameState.partyLocked = true;
+    if (atkRoll <= defRoll) return { hit: false, crit: false, damage: 0 };
 
-        const off = this.offlineGains();
-        if (off.gold || off.kills) {
-            GameState.gold += off.gold;
-            GameState.totalGold += off.gold;
-            UI.showBanner(off.gold, off.kills);
-        }
-        this.recalcPassive();
-        this.save();
-        this.enterFirst();
-    },
-
-    enterFirst() {
-        const first = NODE_DEFINITIONS.find(n => GameState.nodes[n.id].unlocked);
-        if (first) this.enterDungeon(first.id);
-    },
-
-    enterDungeon(nodeId) {
-        if (GameState.currentDungeon) return;
-        const def = NODE_DEFINITIONS.find(n => n.id === nodeId);
-        if (!def) return;
-        GameState.currentDungeon = DungeonGen.generate(def);
-        GameState.currentRoomIdx = 0;
-        this.loadRoom();
-        GameState.party.forEach((c,i) => c.pos = { x: 2 + i*0.5, y: 2 });
-        GameState.paused = false;
-        UI.log(`Entering ${def.name}`, 'info');
-    },
-
-    loadRoom() {
-        const room = GameState.currentDungeon.rooms[GameState.currentRoomIdx];
-        if (!room) return;
-        GameState.monsters = room.monsters.map(m => {
-            const nm = new Monster(m.level, m.type);
-            Object.assign(nm, m);
-            return nm;
-        });
-        GameState.loot = room.loot.slice();
-    },
-
-    recalcStats(char) {
-        const def = CLASS_DEFINITIONS[char.class];
-        const base = { ...def.baseStats };
-        base.dmg += Math.floor((char.level-1)*0.5);
-        base.atk += char.level-1;
-        base.arm += Math.floor((char.level-1)*0.3);
-        base.def += Math.floor((char.level-1)*0.5);
-        base.hp += (char.level-1)*5;
-        char.base = base;
-        char.maxHp = base.hp;
-        if (char.hp > char.maxHp) char.hp = char.maxHp;
-    },
-
-    totalStats(char) {
-        const s = { ...char.base };
-        Object.values(char.equipment).forEach(e => {
-            if (e) {
-                s.dmg += e.dmg || 0;
-                s.atk += e.atk || 0;
-                s.arm += e.armor || 0;
-                s.def += e.def || 0;
-                s.hp += e.hp || 0;
-            }
-        });
-        return s;
-    },
-
-    addCharacter(cls) {
-        if (GameState.partyLocked) return false;
-        const max = 4 + (GameState.prestige.extra_slot || 0);
-        if (GameState.party.length >= max) return false;
-        GameState.party.push(new Character(cls, generateId()));
-        this.updateAchievement('party_five', GameState.party.length);
-        return true;
-    },
-
-    removeCharacter(id) {
-        if (GameState.partyLocked || GameState.party.length <= 1) return;
-        GameState.party = GameState.party.filter(c => c.id !== id);
-    },
-
-    startWithSelectedParty() {
-        if (UI.selectedClasses.length !== 4) return;
-        GameState.party = UI.selectedClasses.map(cls => new Character(cls, generateId()));
-        GameState.partyLocked = true;
-        UI.hideModal('char-modal');
-        this.enterFirst();
-        this.save();
-        UI.renderAll();
-    },
-
-    // ========== TURN UPDATE ==========
-    updateTurn() {
-        if (GameState.paused || !GameState.currentDungeon) return;
-        GameState.turn++;
-
-        // update potions
-        GameState.activePotions = GameState.activePotions.filter(p => { p.remaining--; return p.remaining > 0; });
-
-        // characters
-        GameState.party.forEach(c => {
-            if (!c.stunned) {
-                c.update();
-                this.charAI(c);
-            }
-        });
-
-        // monsters
-        GameState.monsters.forEach(m => {
-            m.update();
-            this.monsterAI(m);
-        });
-
-        // remove dead monsters
-        const dead = GameState.monsters.filter(m => m.hp <= 0);
-        dead.forEach(m => this.killMonster(m));
-        GameState.monsters = GameState.monsters.filter(m => m.hp > 0);
-
-        // check room clear
-        if (GameState.monsters.length === 0) this.roomCleared();
-
-        // auto loot
-        this.collectLoot();
-
-        UI.renderGameView();
-    },
-
-    charAI(c) {
-        if (GameState.monsters.length === 0) return;
-        const targets = GameState.monsters.map(m => m.pos);
-        const nearest = findNearest(c.pos, targets);
-        const mon = GameState.monsters[nearest.index];
-        if (nearest.distance < ATTACK_RANGE) {
-            const res = c.attack(mon);
-            if (res?.hit) UI.floating(mon.pos, res.dmg, res.crit);
-        } else {
-            // move toward
-            const dx = mon.pos.x - c.pos.x;
-            const dy = mon.pos.y - c.pos.y;
-            const dist = nearest.distance;
-            const spd = MOVE_SPEED * (GameState.activePotions.some(p => p.effect==='speed') ? 1.5 : 1);
-            c.pos.x += (dx / dist) * spd;
-            c.pos.y += (dy / dist) * spd;
-            // keep in room
-            const room = GameState.currentDungeon.rooms[GameState.currentRoomIdx];
-            c.pos.x = Math.max(1, Math.min(room.w-1, c.pos.x));
-            c.pos.y = Math.max(1, Math.min(room.h-1, c.pos.y));
-        }
-    },
-
-    monsterAI(m) {
-        if (GameState.activePotions.some(p => p.effect==='docileMonsters')) return;
-        const alive = GameState.party.filter(c => !c.stunned && c.hp > 0);
-        if (!alive.length) return;
-        const targets = alive.map(c => c.pos);
-        const nearest = findNearest(m.pos, targets);
-        const target = alive[nearest.index];
-        if (nearest.distance < ATTACK_RANGE) {
-            const res = m.attack(target);
-            if (res?.hit) UI.floating(target.pos, res.dmg, false);
-        } else {
-            const dx = target.pos.x - m.pos.x;
-            const dy = target.pos.y - m.pos.y;
-            const dist = nearest.distance;
-            m.pos.x += (dx / dist) * MOVE_SPEED * 0.7;
-            m.pos.y += (dy / dist) * MOVE_SPEED * 0.7;
-            const room = GameState.currentDungeon.rooms[GameState.currentRoomIdx];
-            m.pos.x = Math.max(1, Math.min(room.w-1, m.pos.x));
-            m.pos.y = Math.max(1, Math.min(room.h-1, m.pos.y));
-        }
-    },
-
-    killMonster(m) {
-        GameState.totalKills++;
-        GameState.ap++;
-        this.updateAchievement('first_blood', 1);
-        this.updateAchievement('monster_slayer', GameState.totalKills);
-
-        const xpShare = Math.floor(m.xp / GameState.party.length);
-        GameState.party.forEach(c => c.gainXP(xpShare));
-
-        const goldMult = GameState.activePotions.some(p => p.effect==='doubleGold') ? 2 : 1;
-        const gold = randomRange(5, 15) * goldMult;
-        GameState.gold += gold;
-        GameState.totalGold += gold;
-
-        if (Math.random() < 0.25) {
-            const item = ItemGen.generate(m.level);
-            GameState.loot.push({ type: 'item', item, pos: { ...m.pos } });
-        }
-        if (Math.random() < 0.07) {
-            const idx = Math.floor(Math.random() * SCROLLS.length);
-            GameState.loot.push({ type: 'scroll', idx, pos: { ...m.pos } });
-        }
-        if (Math.random() < 0.05) {
-            const idx = Math.floor(Math.random() * POTIONS.length);
-            GameState.loot.push({ type: 'potion', idx, pos: { ...m.pos } });
-        }
-
-        if (m.isBoss) {
-            GameState.bossesDefeated++;
-            this.updateAchievement('castle_conqueror', GameState.bossesDefeated);
-            const nodeId = GameState.currentDungeon.nodeId;
-            GameState.nodes[nodeId].beaten = true;
-            const def = NODE_DEFINITIONS.find(n => n.id === nodeId);
-            def.unlocks.forEach(id => { if (GameState.nodes[id]) GameState.nodes[id].unlocked = true; });
-        }
-    },
-
-    roomCleared() {
-        const room = GameState.currentDungeon.rooms[GameState.currentRoomIdx];
-        room.cleared = true;
-        UI.log('Room cleared!', 'success');
-        if (GameState.currentRoomIdx + 1 < GameState.currentDungeon.rooms.length) {
-            GameState.currentRoomIdx++;
-            this.loadRoom();
-            UI.log(`Entering room ${GameState.currentRoomIdx+1}`, 'info');
-        } else {
-            UI.log('Dungeon conquered!', 'special');
-            GameState.currentDungeon = null;
-            const next = NODE_DEFINITIONS.find(n => GameState.nodes[n.id].unlocked && !GameState.nodes[n.id].beaten);
-            if (next) this.enterDungeon(next.id);
-        }
-    },
-
-    collectLoot() {
-        GameState.party.forEach(c => {
-            GameState.loot = GameState.loot.filter(l => {
-                if (distance(c.pos, l.pos) < 0.5) {
-                    if (l.type === 'item') {
-                        c.inventory = c.inventory || [];
-                        c.inventory.push(l.item);
-                        this.autoEquip(c, l.item);
-                    } else if (l.type === 'scroll') GameState.scrolls[l.idx].count++;
-                    else if (l.type === 'potion') GameState.potions[l.idx].count++;
-                    return false;
-                }
-                return true;
-            });
-        });
-    },
-
-    autoEquip(c, item) {
-        const slot = this.slotFor(item);
-        if (!slot) return;
-        const cur = c.equipment[slot];
-        if (!cur || this.itemScore(item) > this.itemScore(cur)) {
-            c.equipment[slot] = item;
-            c.inventory = c.inventory.filter(i => i.id !== item.id);
-            this.recalcStats(c);
-        }
-    },
-
-    slotFor(item) {
-        if (item.type.includes('Sword')||item.type.includes('Axe')) return 'weapon';
-        if (item.type.includes('Helmet')) return 'helm';
-        if (item.type.includes('Chest')) return 'chest';
-        if (item.type.includes('Legs')) return 'legs';
-        if (item.type.includes('Boots')) return 'boots';
-        if (item.type.includes('Gloves')) return 'gloves';
-        if (item.type.includes('Ring')) return 'ring1';
-        if (item.type.includes('Amulet')) return 'amulet';
-        return null;
-    },
-
-    itemScore(i) { return (i.dmg||0) + (i.atk||0) + (i.armor||0) + (i.def||0) + (i.hp||0)/5; },
-
-    useScroll(idx) {
-        const s = GameState.scrolls[idx];
-        if (!s || s.count <= 0) return;
-        if (!GameState.activePotions.some(p => p.effect==='infiniteScrolls')) s.count--;
-        GameState.monsters.forEach(m => {
-            m.takeDamage(s.damage);
-            UI.floating(m.pos, s.damage, false);
-        });
-        UI.log(`Used ${s.name}!`, 'info');
-    },
-
-    usePotion(idx) {
-        const p = GameState.potions[idx];
-        if (!p || p.count <= 0) return;
-        p.count--;
-        const dur = p.duration * (1 + (GameState.prestige.potionDuration||0)*0.15);
-        GameState.activePotions.push({ ...p, remaining: Math.floor(dur) });
-        UI.log(`Activated ${p.name}!`, 'info');
-    },
-
-    purchaseFarm(nodeId, dunId) {
-        const node = NODE_DEFINITIONS.find(n => n.id === nodeId);
-        const dun = node.dungeons.find(d => d.id === dunId);
-        const ns = GameState.nodes[nodeId];
-        if (!ns.beaten || ns.dungeons[dunId].owned || GameState.gold < dun.cost) return false;
-        GameState.gold -= dun.cost;
-        ns.dungeons[dunId].owned = true;
-        this.recalcPassive();
-        return true;
-    },
-
-    toggleFarm(nodeId, dunId) {
-        const ns = GameState.nodes[nodeId];
-        ns.dungeons[dunId].active = !ns.dungeons[dunId].active;
-        this.recalcPassive();
-    },
-
-    recalcPassive() {
-        let kills=0, gold=0, xp=0;
-        NODE_DEFINITIONS.forEach(node => {
-            const ns = GameState.nodes[node.id];
-            if (!ns.beaten) return;
-            node.dungeons.forEach(d => {
-                const ds = ns.dungeons[d.id];
-                if (ds.owned && ds.active) {
-                    const mult = 1 + (GameState.prestige.farm_speed||0)*0.2;
-                    const k = d.killRate * mult;
-                    kills += k;
-                    gold += k * d.goldPerKill;
-                    xp += k * d.xpPerKill;
-                }
-            });
-        });
-        GameState.passive = { kills, gold, xp };
-    },
-
-    processPassive() {
-        const sec = PASSIVE_TICK_INTERVAL / 1000;
-        const gold = Math.floor(GameState.passive.gold * sec);
-        const xp = Math.floor(GameState.passive.xp * sec);
-        if (gold) GameState.gold += gold;
-        if (xp) GameState.party.forEach(c => c.gainXP(Math.floor(xp / GameState.party.length)));
-    },
-
-    offlineGains() {
-        const elapsed = Date.now() - GameState.lastSave;
-        const max = MAX_OFFLINE_HOURS * 3600000;
-        const sec = Math.floor(Math.min(elapsed, max) / 1000);
-        if (sec <= 0) return { gold:0, kills:0 };
-        const gold = Math.floor(GameState.passive.gold * sec * 0.5);
-        const kills = Math.floor(GameState.passive.kills * sec * 0.5);
-        return { gold, kills };
-    },
-
-    updateAchievement(id, prog) {
-        const a = GameState.achievements[id];
-        if (!a || a.done) return;
-        a.prog = Math.max(a.prog, prog);
-        const def = ACHIEVEMENTS.find(x => x.id === id);
-        if (a.prog >= def.req) {
-            a.done = true;
-            GameState.ap += def.ap;
-        }
-    },
-
-    prestige() {
-        const savedAP = GameState.ap;
-        const savedPrestige = { ...GameState.prestige };
-        const savedCount = (GameState.prestigeCount || 0) + 1;
-        // reset
-        GameState.gold = 100;
-        GameState.ap = savedAP;
-        GameState.party = [];
-        GameState.partyLocked = false;
-        GameState.nodes = {};
-        NODE_DEFINITIONS.forEach((n,i) => {
-            GameState.nodes[n.id] = { unlocked: i===0, beaten: false, dungeons: {} };
-            n.dungeons.forEach(d => GameState.nodes[n.id].dungeons[d.id] = { owned: false, active: false });
-        });
-        GameState.inventory = [];
-        GameState.scrolls = SCROLLS.map(s => ({ ...s, count: 0 }));
-        GameState.potions = POTIONS.map(p => ({ ...p, count: 0 }));
-        GameState.totalKills = 0;
-        GameState.totalGold = 0;
-        GameState.bossesDefeated = 0;
-        GameState.currentDungeon = null;
-        GameState.activePotions = [];
-        GameState.prestigeCount = savedCount;
-        GameState.prestige = savedPrestige;
-        this.recalcPassive();
-        this.save();
-        UI.showCharModal();
-    },
-
-    save() {
-        GameState.lastSave = Date.now();
-        localStorage.setItem('dungeonInfinitum', JSON.stringify(GameState));
-    },
-
-    load() {
-        const saved = localStorage.getItem('dungeonInfinitum');
-        if (saved) {
-            const data = JSON.parse(saved);
-            Object.assign(GameState, data);
-            GameState.party = GameState.party.map(c => {
-                const nc = new Character(c.class, c.id);
-                Object.assign(nc, c);
-                return nc;
-            });
-        }
-    },
-
-    exportSave() {
-        const b64 = btoa(JSON.stringify(GameState));
-        navigator.clipboard.writeText(b64);
-        UI.showExportModal(b64);
-    },
-
-    importSave() {
-        const inp = document.getElementById('import-input');
-        try {
-            const data = JSON.parse(atob(inp.value));
-            Object.assign(GameState, data);
-            GameState.party = GameState.party.map(c => {
-                const nc = new Character(c.class, c.id);
-                Object.assign(nc, c);
-                return nc;
-            });
-            UI.hideModal('char-modal');
-            UI.renderAll();
-        } catch { alert('Invalid save'); }
-    },
-
-    deleteAllData() {
-        localStorage.removeItem('dungeonInfinitum');
-        location.reload();
+    const isCrit = randF() < attacker.crit;
+    let dmg;
+    if (isCrit) {
+        // Crits bypass armor entirely
+        dmg = attacker.dmg + randInt(0, Math.floor(attacker.dmg * 0.5));
+    } else {
+        dmg = Math.max(1, attacker.dmg - defender.armor + randInt(-2, 2));
     }
-};
+    return { hit: true, crit: isCrit, damage: dmg };
+}
 
-// ============================================================
-// UI
-// ============================================================
-const UI = {
-    activeTab: 'party',
-    selectedChar: null,
-    selectedClasses: [],
-    fps: 0,
-    fpsFrames: 0,
-    lastFps: 0,
-    canvas: document.getElementById('mainCanvas'),
-    ctx: document.getElementById('mainCanvas').getContext('2d'),
-    miniCtx: document.getElementById('minimapCanvas').getContext('2d'),
-    floating: [],
+// Returns true if target is KO'd/killed
+function dealDamage(target, amount) {
+    // Hero shield block reduces damage by 40%
+    if (target.shieldActive) {
+        amount = Math.max(1, Math.floor(amount * 0.6));
+    }
+    target.hp = Math.max(0, target.hp - amount);
+    if (target.hp > 0) return false;
 
-    init() {
-        document.getElementById('fps-toggle').onclick = () => {
-            GameState.showFps = !GameState.showFps;
-            document.getElementById('fps-toggle').textContent = GameState.showFps ? 'Hide FPS' : 'Show FPS';
-        };
-        document.getElementById('pause-btn').onclick = () => {
-            GameState.paused = !GameState.paused;
-            this.updatePause();
-        };
-        this.renderTabs();
-        this.renderAll();
-        document.addEventListener('keydown', e => {
-            if (e.key >= '1' && e.key <= '6') Game.useScroll(parseInt(e.key)-1);
-        });
-    },
+    // Heroes get stunned; monsters die
+    if (target.maxSP !== undefined) {
+        target.stunTicks = CFG.STUN_TICKS;
+        target.hp = 0;
+        G.stats.timesStunned++;
+        log(`${target.name} is STUNNED!`, '#FA0');
+    }
+    return true;
+}
 
-    renderTabs() {
-        const tabs = ['party', 'skills', 'equipment', 'pack', 'prestige', 'achievements', 'settings'];
-        const html = tabs.map(t => `<button class="tab-btn ${this.activeTab===t?'active':''}" onclick="UI.setTab('${t}')">${t}</button>`).join('');
-        document.getElementById('tab-buttons').innerHTML = html;
-    },
+function livingHeroes() {
+    return G.party.filter(h => h.hp > 0 && h.stunTicks === 0);
+}
 
-    setTab(t) { this.activeTab = t; this.renderTabs(); this.renderTab(); },
+function livingMonsters() {
+    return G.monsters.filter(m => m.hp > 0);
+}
 
-    updatePause() {
-        const btn = document.getElementById('pause-btn');
-        btn.textContent = GameState.paused ? '▶ Play' : '⏸ Pause';
-        btn.className = `btn ${GameState.paused ? 'btn-play' : 'btn-pause'}`;
-    },
+function pickHeroTarget() {
+    const valid = livingHeroes().filter(h => !h.stealthed);
+    if (!valid.length) return null;
+    return valid[randInt(0, valid.length - 1)];
+}
 
-    renderAll() {
-        this.renderResources();
-        this.renderPassive();
-        this.renderNodes();
-        this.renderFarms();
-        this.renderGame();
-        this.renderTab();
-        this.updatePause();
-    },
+function pickMonsterTarget() {
+    const alive = livingMonsters();
+    if (!alive.length) return null;
+    // Target lowest HP%
+    return alive.reduce((a, b) => (a.hp / a.maxHP) <= (b.hp / b.maxHP) ? a : b);
+}
 
-    renderResources() {
-        document.getElementById('resources').innerHTML = `
-            <div class="resource-item"><span>Gold</span><span class="resource-value">${formatNumber(GameState.gold)}</span></div>
-            <div class="resource-item"><span>Adventure Points</span><span class="resource-value">${GameState.ap}</span></div>
-            <div class="resource-item"><span>Kills</span><span class="resource-value">${formatNumber(GameState.totalKills)}</span></div>
-            <div class="resource-item"><span>Bosses</span><span class="resource-value">${GameState.bossesDefeated}/${NODE_DEFINITIONS.length}</span></div>
-        `;
-    },
+function heroAttacks(hero) {
+    const target = pickMonsterTarget();
+    if (!target) return;
 
-    renderPassive() {
-        document.getElementById('passive-stats').innerHTML = `
-            <div class="passive-item"><span>⚡ Kills/s</span><span>${GameState.passive.kills.toFixed(2)}</span></div>
-            <div class="passive-item"><span>💰 Gold/s</span><span>${formatNumber(GameState.passive.gold)}</span></div>
-            <div class="passive-item"><span>✨ XP/s</span><span>${formatNumber(GameState.passive.xp)}</span></div>
-        `;
-    },
+    const res = resolveHit(hero, target);
 
-    renderNodes() {
-        let html = '';
-        NODE_DEFINITIONS.forEach(n => {
-            const ns = GameState.nodes[n.id];
-            if (!ns?.unlocked) return;
-            const status = ns.beaten ? 'completed' : 'available';
-            const text = ns.beaten ? '✓ Conquered' : '⚔️ Available';
-            html += `
-                <div class="castle-panel">
-                    <div class="castle-header">
-                        <span class="castle-name">${n.icon} ${n.name}</span>
-                        <span class="castle-status ${status}">${text}</span>
-                    </div>
-                    ${!ns.beaten ? `
-                        <button class="castle-btn" onclick="Game.enterDungeon('${n.id}'); UI.renderAll();" ${GameState.currentDungeon?'disabled':''}>
-                            ⚔️ Enter
-                        </button>
-                    ` : '<p style="font-size:0.8rem;color:#22c55e;">Cleared</p>'}
-                </div>
-            `;
-        });
-        document.getElementById('node-panel').innerHTML = html || '<p>No regions unlocked.</p>';
-    },
+    if (hero.isRanged) { hero.rangedAtks++; G.stats.rangedAttacks++; }
+    else { hero.meleeAtks++; G.stats.meleeAttacks++; }
 
-    renderFarms() {
-        let html = '', any = false;
-        NODE_DEFINITIONS.forEach(n => {
-            const ns = GameState.nodes[n.id];
-            if (!ns?.beaten) return;
-            n.dungeons.forEach(d => {
-                const ds = ns.dungeons[d.id];
-                if (!ds.owned) {
-                    html += `
-                        <div class="farm-item">
-                            <span class="farm-icon">${d.icon}</span>
-                            <div class="farm-info">
-                                <div class="farm-name">${d.name}</div>
-                                <div class="farm-stats">Lv.${d.level} | ${d.killRate}/s | ${d.goldPerKill}g</div>
-                            </div>
-                            <button class="farm-btn" onclick="Game.purchaseFarm('${n.id}','${d.id}');UI.renderAll();" ${GameState.gold<d.cost?'disabled':''}>
-                                ${formatNumber(d.cost)}g
-                            </button>
-                        </div>
-                    `;
-                } else {
-                    any = true;
-                    html += `
-                        <div class="farm-item">
-                            <span class="farm-icon">${d.icon}</span>
-                            <div class="farm-info">
-                                <div class="farm-name">${d.name}</div>
-                                <div class="farm-stats">${d.killRate}/s | ${d.goldPerKill}g</div>
-                            </div>
-                            <button class="farm-btn ${ds.active?'deactivate':''}" onclick="Game.toggleFarm('${n.id}','${d.id}');UI.renderAll();">
-                                ${ds.active ? 'ON' : 'OFF'}
-                            </button>
-                        </div>
-                    `;
-                }
-            });
-        });
-        if (!any) html += '<p style="color:#94a3b8;">Beat bosses to unlock farms.</p>';
-        document.getElementById('farm-panel').innerHTML = html;
-    },
+    if (!res.hit) return;
 
-    renderGame() {
-        if (!GameState.currentDungeon) {
-            this.ctx.fillStyle = '#0f172a';
-            this.ctx.fillRect(0,0,800,600);
-            this.ctx.fillStyle = '#94a3b8';
-            this.ctx.font = '24px sans-serif';
-            this.ctx.fillText('Select a dungeon', 250,300);
-            return;
-        }
-        const room = GameState.currentDungeon.rooms[GameState.currentRoomIdx];
-        if (!room) return;
+    if (res.crit) {
+        G.stats.criticalHits++;
+        log(`${hero.name} CRITS ${target.name} for ${res.damage}!`, '#FA0');
+    } else {
+        log(`${hero.name} hits ${target.name} for ${res.damage}.`, '#8F8');
+    }
 
-        // draw room
-        this.ctx.fillStyle = '#1e293b';
-        this.ctx.fillRect(50,50, room.w*TILE_SIZE, room.h*TILE_SIZE);
-        this.ctx.strokeStyle = '#475569';
-        this.ctx.lineWidth = 2;
-        this.ctx.strokeRect(50,50, room.w*TILE_SIZE, room.h*TILE_SIZE);
+    hero.totalDmg += res.damage;
+    const ko = dealDamage(target, res.damage);
+    if (ko) onMonsterDied(target, hero);
+}
 
-        // monsters
-        GameState.monsters.forEach(m => {
-            const x = 50 + m.pos.x * TILE_SIZE;
-            const y = 50 + m.pos.y * TILE_SIZE;
-            this.ctx.font = '24px sans-serif';
-            this.ctx.fillText(m.sprite, x, y);
-            const pct = m.hp / m.maxHp;
-            this.ctx.fillStyle = '#c62828';
-            this.ctx.fillRect(x, y+25, 30 * pct, 3);
-        });
+function monsterAttacks(monster) {
+    const target = pickHeroTarget();
+    if (!target) return;
 
-        // loot
-        GameState.loot.forEach(l => {
-            const x = 50 + l.pos.x * TILE_SIZE;
-            const y = 50 + l.pos.y * TILE_SIZE;
-            this.ctx.font = '20px sans-serif';
-            if (l.type === 'item') this.ctx.fillText('📦', x, y);
-            else if (l.type === 'scroll') this.ctx.fillText('📜', x, y);
-            else if (l.type === 'potion') this.ctx.fillText('🧪', x, y);
-        });
+    const res = resolveHit(monster, target);
+    if (!res.hit) return;
 
-        // party
-        GameState.party.forEach(c => {
-            const x = 50 + c.pos.x * TILE_SIZE;
-            const y = 50 + c.pos.y * TILE_SIZE;
-            this.ctx.font = '24px sans-serif';
-            this.ctx.fillText(c.sprite, x, y);
-            const pct = c.hp / c.maxHp;
-            this.ctx.fillStyle = c.stunned ? '#666' : '#22c55e';
-            this.ctx.fillRect(x, y+25, 30 * pct, 3);
-        });
+    if (res.crit) {
+        log(`${monster.name} CRITS ${target.name} for ${res.damage}!`, '#F44');
+    } else {
+        log(`${monster.name} hits ${target.name} for ${res.damage}.`, '#FAA');
+    }
 
-        // floating texts
-        this.floating = this.floating.filter(f => {
-            f.life--;
-            if (f.life <=0) return false;
-            this.ctx.font = f.crit ? 'bold 18px sans-serif' : '14px sans-serif';
-            this.ctx.fillStyle = f.crit ? '#ff9800' : '#f44336';
-            const x = 50 + f.pos.x * TILE_SIZE;
-            const y = 50 + f.pos.y * TILE_SIZE - (20 - f.life*2);
-            this.ctx.fillText(f.dmg, x, y);
+    dealDamage(target, res.damage);
+}
+
+function onMonsterDied(monster, killer) {
+    state_removeMonster(monster);
+
+    G.kills++;
+    hero_distributeXP(monster.xpReward);
+    hero_dropGold(monster);
+
+    if (killer) killer.kills++;
+    log(`${monster.name} defeated! +${monster.xpReward} XP`, '#AFF');
+
+    if (livingMonsters().length === 0) onRoomCleared();
+}
+
+function state_removeMonster(m) {
+    const i = G.monsters.indexOf(m);
+    if (i >= 0) G.monsters.splice(i, 1);
+}
+
+function hero_distributeXP(total) {
+    const share = Math.max(1, Math.floor(total / G.party.length));
+    for (const h of G.party) heroGainXP(h, share);
+}
+
+function hero_dropGold(monster) {
+    if (randF() >= G.upgrades.goldChance) return;
+    const gold = randInt(G.upgrades.minGold, G.upgrades.maxGold);
+    if (gold <= 0) return;
+    G.gold += gold;
+    G.goldEarned += gold;
+    log(`Found ${gold} gold!`, '#FA0');
+}
+
+// ===== ABILITIES =====
+function tryAbilities(hero) {
+    // Tick cooldowns first
+    for (const ab of hero.abilities) {
+        if (hero.abilityCDs[ab] > 0) hero.abilityCDs[ab]--;
+    }
+
+    for (const ab of hero.abilities) {
+        if ((hero.abilityCDs[ab] || 0) > 0) continue;
+        if (executeAbility(hero, ab)) return true;
+    }
+    return false;
+}
+
+function executeAbility(hero, ab) {
+    switch (ab) {
+        case 'heal': {
+            const hurt = G.party
+                .filter(h => h.hp < h.maxHP * 0.85 && h.stunTicks === 0)
+                .sort((a, b) => a.hp / a.maxHP - b.hp / b.maxHP)[0];
+            if (!hurt || hero.sp < 20) return false;
+            const amt = Math.floor(hero.maxSP * 0.3 + hero.dmg * 2);
+            hurt.hp = Math.min(hurt.maxHP, hurt.hp + amt);
+            hero.healing += amt;
+            hero.sp -= 20;
+            hero.abilityCDs.heal = 12;
+            hero.cooldown = hero.speed;
+            G.stats.spellsCast++; hero.spellsCast++;
+            log(`${hero.name} heals ${hurt.name} for ${amt}.`, '#4F4');
             return true;
-        });
-
-        // minimap
-        this.miniCtx.fillStyle = '#0f172a';
-        this.miniCtx.fillRect(0,0,150,150);
-        GameState.currentDungeon.rooms.forEach((r,i) => {
-            const col = i===GameState.currentRoomIdx ? '#22c55e' : (r.cleared ? '#3b82f6' : '#475569');
-            this.miniCtx.fillStyle = col;
-            this.miniCtx.fillRect(10 + (i%5)*28, 10 + Math.floor(i/5)*28, 20, 20);
-        });
-
-        document.getElementById('dungeon-name').textContent = GameState.currentDungeon.name;
-        document.getElementById('room-info').textContent = `Room ${GameState.currentRoomIdx+1}/${GameState.currentDungeon.rooms.length}`;
-        document.getElementById('monster-count').textContent = `Monsters: ${GameState.monsters.length}`;
-    },
-
-    floating(pos, dmg, crit) { this.floating.push({ pos, dmg, crit, life: 20 }); },
-
-    log(msg, type) {
-        const log = document.getElementById('combat-log');
-        const e = document.createElement('div');
-        e.textContent = msg;
-        e.style.color = type==='special' ? '#a855f7' : '#94a3b8';
-        log.appendChild(e);
-        if (log.children.length > 8) log.removeChild(log.firstChild);
-    },
-
-    renderTab() {
-        const c = document.getElementById('tab-content');
-        if (this.activeTab === 'party') c.innerHTML = this.partyTab();
-        else if (this.activeTab === 'skills') c.innerHTML = '<p>Skill tree coming soon</p>';
-        else if (this.activeTab === 'equipment') c.innerHTML = this.equipTab();
-        else if (this.activeTab === 'pack') c.innerHTML = this.packTab();
-        else if (this.activeTab === 'prestige') c.innerHTML = this.prestigeTab();
-        else if (this.activeTab === 'achievements') c.innerHTML = this.achievementsTab();
-        else if (this.activeTab === 'settings') c.innerHTML = this.settingsTab();
-    },
-
-    partyTab() {
-        const max = 4 + (GameState.prestige.extra_slot || 0);
-        const sel = GameState.party.find(c => c.id === this.selectedChar);
-        let html = `
-            <div class="party-header">
-                <h3>Party (${GameState.party.length}/${max})</h3>
-                <button class="add-btn" onclick="UI.showCharModal()" ${GameState.partyLocked||GameState.party.length>=max?'disabled':''}>+ Add</button>
-            </div>
-            <div class="party-list">
-                ${GameState.party.map(c => `
-                    <div class="party-member ${this.selectedChar===c.id?'selected':''}" onclick="UI.selectChar('${c.id}')">
-                        <span class="party-sprite">${c.sprite}</span>
-                        <div class="party-info">
-                            <div class="party-name">${c.name}</div>
-                            <div class="party-level">Lv.${c.level}</div>
-                        </div>
-                        ${GameState.party.length>1 && !GameState.partyLocked ? `<button class="remove-btn" onclick="event.stopPropagation(); Game.removeCharacter('${c.id}'); UI.renderAll();">×</button>` : ''}
-                    </div>
-                `).join('')}
-            </div>
-        `;
-        if (sel) {
-            const pct = (sel.xp / sel.xpNext) * 100;
-            html += `
-                <div class="char-details">
-                    <h4>${sel.name} Lv.${sel.level}</h4>
-                    <div class="xp-bar">
-                        <div class="xp-fill" style="width:${pct}%"></div>
-                        <div class="xp-text">${sel.xp}/${sel.xpNext}</div>
-                    </div>
-                    <div class="skill-points">Skill Points: ${sel.skillPoints}</div>
-                </div>
-            `;
         }
-        return html;
-    },
 
-    equipTab() {
-        const sel = GameState.party.find(c => c.id === this.selectedChar);
-        if (!sel) return '<p>Select a character in Party tab.</p>';
-        const stats = Game.totalStats(sel);
-        let html = `<h4>${sel.name}</h4><div style="font-size:0.8rem;color:#94a3b8;">DMG:${stats.dmg} ATK:${stats.atk} ARM:${stats.arm} DEF:${stats.def} HP:${stats.hp}</div>`;
-        html += '<div class="equipment-grid">';
-        for (let slot in sel.equipment) {
-            const item = sel.equipment[slot];
-            html += `<div class="equipment-slot"><span class="slot-label">${slot}</span>`;
-            if (item) html += `<div class="equipped-item" style="border-color:${ITEM_RARITY[item.rarity]?.color||'#999'}">${item.name}</div>`;
-            else html += '<div class="empty-slot">Empty</div>';
-            html += '</div>';
+        case 'stealth': {
+            if (hero.stealthed || hero.sp < 15) return false;
+            hero.stealthed = true;
+            hero.sp -= 15;
+            hero.abilityCDs.stealth = 20;
+            log(`${hero.name} vanishes into shadow.`, '#AAF');
+            return true;
         }
-        html += '</div><h4>Inventory</h4><div class="inventory-grid">';
-        (sel.inventory || []).forEach(item => {
-            html += `<div class="inventory-item"><span>${item.name}</span><button class="equip-btn" onclick="Game.autoEquip(UI.selectedChar, item)">Equip</button></div>`;
-        });
-        html += '</div>';
-        return html;
-    },
 
-    packTab() {
-        let html = '<h3>Pack</h3>';
-        if (GameState.activePotions.length) {
-            html += '<div class="active-section">' + GameState.activePotions.map(p => `<div>${p.name}: ${p.remaining}s</div>`).join('') + '</div>';
+        case 'poisonBlade': {
+            const t = pickMonsterTarget();
+            if (!t || hero.sp < 10 || t.poison) return false;
+            t.poison = { dmg: Math.max(1, Math.floor(hero.dmg * 0.3)), ticks: 8 };
+            hero.sp -= 10;
+            hero.abilityCDs.poisonBlade = 8;
+            log(`${hero.name} poisons ${t.name}!`, '#8F4');
+            return false; // doesn't consume attack slot
         }
-        html += '<h4>Scrolls</h4>';
-        GameState.scrolls.forEach((s,i) => {
-            html += `<div class="consumable-item"><span>${s.name} (${s.count})</span><button class="use-btn" onclick="Game.useScroll(${i})">Use</button></div>`;
-        });
-        html += '<h4>Potions</h4>';
-        GameState.potions.forEach((p,i) => {
-            html += `<div class="consumable-item"><span>${p.name} (${p.count})</span><button class="use-btn" onclick="Game.usePotion(${i})">Use</button></div>`;
-        });
-        return html;
-    },
 
-    prestigeTab() {
-        const potential = Math.floor(GameState.totalGold/10000) + Math.floor(GameState.totalKills/100);
-        let html = `<div class="ap-display"><span>AP: ${GameState.ap}</span><span>Potential: +${potential}</span></div>`;
-        PRESTIGE_UPGRADES.forEach(u => {
-            const lvl = GameState.prestige[u.id] || 0;
-            html += `
-                <div class="prestige-upgrade">
-                    <div><strong>${u.name}</strong> (${lvl}/${u.max})<br><small>${u.desc}</small></div>
-                    <button class="farm-btn" onclick="Game.purchasePrestigeUpgrade('${u.id}');UI.renderAll();" ${GameState.ap<u.cost||lvl>=u.max?'disabled':''}>${u.cost} AP</button>
-                </div>
-            `;
-        });
-        html += `<button class="prestige-btn" onclick="if(confirm('Prestige?')) Game.prestige();UI.renderAll();" ${potential<1?'disabled':''}>🔄 Prestige (+${potential} AP)</button>`;
-        return html;
-    },
+        case 'fireball': {
+            const t = pickMonsterTarget();
+            if (!t || hero.sp < 25) return false;
+            const dmg = Math.floor(hero.dmg * 2 + randInt(0, hero.dmg));
+            hero.sp -= 25;
+            hero.abilityCDs.fireball = 16;
+            hero.cooldown = hero.speed;
+            G.stats.spellsCast++; hero.spellsCast++;
+            hero.totalDmg += dmg;
+            const ko = dealDamage(t, dmg);
+            log(`${hero.name} launches Fireball at ${t.name} for ${dmg}!`, '#F84');
+            if (ko) onMonsterDied(t, hero);
+            return true;
+        }
 
-    achievementsTab() {
-        let html = '<h3>Achievements</h3>';
-        ACHIEVEMENTS.forEach(a => {
-            const ach = GameState.achievements[a.id] || { prog:0, done:false };
-            const pct = Math.min(100, (ach.prog / a.req) * 100);
-            html += `
-                <div class="achievement-item ${ach.done?'completed':''}">
-                    <div class="achievement-name">${ach.done?'✓':'○'} ${a.name}</div>
-                    <div class="achievement-progress">
-                        <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
-                        <span>${Math.min(ach.prog,a.req)}/${a.req}</span>
-                        <span class="ap-reward">+${a.ap}</span>
-                    </div>
-                </div>
-            `;
-        });
-        return html;
-    },
+        case 'lightning': {
+            const t = pickMonsterTarget();
+            if (!t || hero.sp < 20) return false;
+            const dmg = Math.floor(hero.dmg * 1.8 + randInt(0, hero.dmg));
+            hero.sp -= 20;
+            hero.abilityCDs.lightning = 14;
+            hero.cooldown = hero.speed;
+            G.stats.spellsCast++; hero.spellsCast++;
+            hero.totalDmg += dmg;
+            const ko = dealDamage(t, dmg);
+            log(`${hero.name} zaps ${t.name} with Lightning for ${dmg}!`, '#8CF');
+            if (ko) onMonsterDied(t, hero);
+            return true;
+        }
 
-    settingsTab() {
-        return `
-            <h3>Settings</h3>
-            <div class="settings-section">
-                <button class="settings-btn" onclick="Game.saveGame()">💾 Save Game</button>
-                <button class="settings-btn" onclick="Game.exportSave()">📤 Export Save</button>
-                <button class="settings-btn" onclick="UI.showImportModal()">📥 Import Save</button>
-                <button class="settings-btn danger" onclick="UI.showDeleteModal()">🗑️ Delete All Data</button>
-            </div>
-            <div class="stat"><span>Last Saved:</span><span>${new Date(GameState.lastSave).toLocaleString()}</span></div>
-        `;
-    },
-
-    selectChar(id) { this.selectedChar = this.selectedChar===id ? null : id; this.renderAll(); },
-
-    showCharModal() {
-        const modal = document.getElementById('char-modal');
-        const list = document.getElementById('class-list');
-        this.selectedClasses = [];
-        list.innerHTML = Object.entries(CLASS_DEFINITIONS).map(([k,def]) => `
-            <div class="class-btn" onclick="UI.toggleClass('${k}')" id="btn-${k}">
-                <span class="class-sprite">${def.sprite}</span>
-                <span class="class-name">${def.name}</span>
-                <span class="class-role">${def.role}</span>
-            </div>
-        `).join('');
-        document.getElementById('selected-count').textContent = 'Selected: 0/4';
-        document.getElementById('start-game-btn').disabled = true;
-        modal.classList.add('show');
-    },
-
-    toggleClass(k) {
-        const idx = this.selectedClasses.indexOf(k);
-        const btn = document.getElementById(`btn-${k}`);
-        if (idx === -1) {
-            if (this.selectedClasses.length < 4) {
-                this.selectedClasses.push(k);
-                btn.style.background = '#22c55e33';
+        case 'chainLightning': {
+            const targets = livingMonsters();
+            if (!targets.length || hero.sp < 35) return false;
+            hero.sp -= 35;
+            hero.abilityCDs.chainLightning = 24;
+            hero.cooldown = hero.speed;
+            G.stats.spellsCast++; hero.spellsCast++;
+            let baseDmg = Math.floor(hero.dmg * 1.5);
+            const hit = targets.slice(0, 3);
+            log(`${hero.name} chains Lightning through ${hit.length} enemies!`, '#8CF');
+            for (const t of hit) {
+                const ko = dealDamage(t, baseDmg);
+                hero.totalDmg += baseDmg;
+                if (ko) onMonsterDied(t, hero);
+                baseDmg = Math.floor(baseDmg * 0.6); // chain falloff
+                if (livingMonsters().length === 0) break;
             }
-        } else {
-            this.selectedClasses.splice(idx, 1);
-            btn.style.background = '';
+            return true;
         }
-        document.getElementById('selected-count').textContent = `Selected: ${this.selectedClasses.length}/4`;
-        document.getElementById('start-game-btn').disabled = this.selectedClasses.length !== 4;
-    },
 
-    showImportModal() {
-        document.getElementById('import-input').value = '';
-        document.getElementById('char-modal').classList.add('show');
-    },
-
-    showDeleteModal() { document.getElementById('delete-modal').classList.add('show'); },
-
-    showExportModal(data) {
-        document.getElementById('export-area').value = data;
-        document.getElementById('export-msg').textContent = 'Save copied!';
-        document.getElementById('export-modal').classList.add('show');
-    },
-
-    hideModal(id) { document.getElementById(id).classList.remove('show'); },
-
-    showBanner(gold, kills) {
-        const b = document.getElementById('offline-banner');
-        b.textContent = `💰 While away: +${formatNumber(gold)} gold, +${kills} kills!`;
-        b.style.display = 'block';
-        setTimeout(() => b.style.display = 'none', 5000);
-    },
-
-    updateFps(ts) {
-        if (!GameState.showFps) return;
-        this.fpsFrames++;
-        if (ts - this.lastFps >= 1000) {
-            this.fps = this.fpsFrames;
-            this.fpsFrames = 0;
-            this.lastFps = ts;
-            document.getElementById('fps-display').textContent = `FPS: ${this.fps}`;
+        case 'summonSkeleton': {
+            if (hero.sp < 30) return false;
+            const t = pickMonsterTarget();
+            if (!t) return false;
+            hero.sp -= 30;
+            hero.abilityCDs.summonSkeleton = 30;
+            hero.cooldown = hero.speed;
+            G.stats.spellsCast++; hero.spellsCast++;
+            G.minionsSummoned++;
+            const dmg = Math.max(1, Math.floor(hero.dmg * 0.8));
+            hero.totalDmg += dmg;
+            const ko = dealDamage(t, dmg);
+            log(`${hero.name} summons a Skeleton that strikes ${t.name} for ${dmg}!`, '#AAF');
+            if (ko) onMonsterDied(t, hero);
+            return true;
         }
+
+        case 'deathCoil': {
+            const t = pickMonsterTarget();
+            if (!t || hero.sp < 20) return false;
+            const dmg = Math.floor(hero.dmg * 1.5);
+            const heal = Math.floor(dmg * 0.5);
+            hero.sp -= 20;
+            hero.abilityCDs.deathCoil = 12;
+            hero.cooldown = hero.speed;
+            G.stats.spellsCast++; hero.spellsCast++;
+            hero.totalDmg += dmg;
+            const ko = dealDamage(t, dmg);
+            hero.hp = Math.min(hero.maxHP, hero.hp + heal);
+            hero.healing += heal;
+            log(`${hero.name} fires Death Coil at ${t.name} for ${dmg}, drains ${heal} HP.`, '#A8F');
+            if (ko) onMonsterDied(t, hero);
+            return true;
+        }
+
+        case 'holySmite': {
+            const t = pickMonsterTarget();
+            if (!t || hero.sp < 15) return false;
+            const dmg = Math.floor(hero.dmg * 1.5);
+            hero.sp -= 15;
+            hero.abilityCDs.holySmite = 10;
+            hero.cooldown = hero.speed;
+            G.stats.spellsCast++; hero.spellsCast++;
+            hero.totalDmg += dmg;
+            const ko = dealDamage(t, dmg);
+            log(`${hero.name} smites ${t.name} with holy light for ${dmg}!`, '#FF8');
+            if (ko) onMonsterDied(t, hero);
+            return true;
+        }
+
+        case 'rage': {
+            if (hero.rageActive || hero.sp < 10) return false;
+            hero.rageActive = true;
+            hero.dmg = Math.floor(hero.dmg * 1.5);
+            hero.atk = Math.floor(hero.atk * 1.3);
+            hero.sp -= 10;
+            hero.abilityCDs.rage = 40;
+            log(`${hero.name} enters a RAGE!`, '#F44');
+            return false; // costs no attack turn
+        }
+
+        case 'whirlwind': {
+            const targets = livingMonsters();
+            if (!targets.length || hero.sp < 20) return false;
+            hero.sp -= 20;
+            hero.abilityCDs.whirlwind = 20;
+            hero.cooldown = hero.speed;
+            const hit = targets.slice(0, 4);
+            const dmg = Math.floor(hero.dmg * 0.7);
+            log(`${hero.name} WHIRLS through ${hit.length} enemies for ${dmg} each!`, '#F84');
+            for (const t of hit) {
+                hero.totalDmg += dmg;
+                const ko = dealDamage(t, dmg);
+                if (ko) onMonsterDied(t, hero);
+                if (livingMonsters().length === 0) break;
+            }
+            return true;
+        }
+
+        case 'entangle': {
+            const t = pickMonsterTarget();
+            if (!t || hero.sp < 15) return false;
+            t.cooldown = Math.max(t.cooldown, 8); // roots monster
+            hero.sp -= 15;
+            hero.abilityCDs.entangle = 15;
+            log(`${hero.name} entangles ${t.name} in roots!`, '#4F8');
+            return false;
+        }
+
+        case 'multiShot': {
+            const targets = livingMonsters();
+            if (targets.length < 2 || hero.sp < 15) return false;
+            hero.sp -= 15;
+            hero.abilityCDs.multiShot = 12;
+            hero.cooldown = hero.speed;
+            hero.rangedAtks++;
+            G.stats.rangedAttacks++;
+            const hit = targets.slice(0, 3);
+            log(`${hero.name} fires Multi-Shot at ${hit.length} targets!`, '#8CF');
+            for (const t of hit) {
+                const res = resolveHit(hero, t);
+                if (res.hit) {
+                    hero.totalDmg += res.damage;
+                    const ko = dealDamage(t, res.damage);
+                    if (ko) onMonsterDied(t, hero);
+                    if (livingMonsters().length === 0) break;
+                }
+            }
+            return true;
+        }
+
+        case 'shieldBlock': {
+            if (hero.sp < 10 || hero.shieldActive) return false;
+            hero.shieldActive = true;
+            hero.shieldTicks = 5;
+            hero.sp -= 10;
+            hero.abilityCDs.shieldBlock = 12;
+            log(`${hero.name} raises shield!`, '#88F');
+            return false;
+        }
+
+        case 'crowCall': {
+            // Buff all party members' attack speed for a few ticks
+            if (hero.sp < 12) return false;
+            hero.sp -= 12;
+            hero.abilityCDs.crowCall = 18;
+            for (const h of livingHeroes()) {
+                h.cooldown = Math.max(0, h.cooldown - 2);
+            }
+            log(`${hero.name} crows! Party attacks faster!`, '#FF4');
+            return false;
+        }
+
+        default:
+            return false;
     }
-};
-
-// ============================================================
-// GAME LOOP
-// ============================================================
-let lastTurn = 0, lastPassive = 0;
-
-function loop(ts) {
-    UI.updateFps(ts);
-
-    if (!GameState.paused && GameState.currentDungeon) {
-        if (ts - lastTurn >= TURN_INTERVAL) {
-            Game.updateTurn();
-            UI.renderGame();
-            lastTurn = ts;
-        }
-    } else lastTurn = ts;
-
-    if (ts - lastPassive >= PASSIVE_TICK_INTERVAL) {
-        Game.processPassive();
-        UI.renderResources();
-        UI.renderPassive();
-        lastPassive = ts;
-    }
-
-    requestAnimationFrame(loop);
 }
 
-window.onload = () => {
-    Game.init();
-    UI.init();
-    lastPassive = performance.now();
-    requestAnimationFrame(loop);
-    setInterval(() => Game.save(), 30000);
+// ===== COMBAT TICK =====
+function combatTick() {
+    if (!G.inCombat) return;
+
+    for (const hero of G.party) {
+        if (hero.stunTicks > 0) {
+            hero.stunTicks--;
+            if (hero.stunTicks === 0) {
+                hero.hp = Math.max(1, Math.floor(hero.maxHP * 0.2));
+                log(`${hero.name} recovers from stun.`, '#AFF');
+            }
+            continue;
+        }
+        if (hero.cooldown > 0) { hero.cooldown--; continue; }
+        if (!livingMonsters().length) continue;
+
+        const usedAbility = tryAbilities(hero);
+        if (!usedAbility) {
+            heroAttacks(hero);
+            hero.cooldown = hero.speed;
+        }
+    }
+
+    // Monster turns (iterate copy to avoid mutation issues mid-loop)
+    if (!G.inCombat) return;
+    for (const monster of [...livingMonsters()]) {
+        if (monster.stunTicks > 0) { monster.stunTicks--; continue; }
+        if (monster.cooldown > 0) { monster.cooldown--; continue; }
+
+        monsterAttacks(monster);
+        monster.cooldown = monster.speed;
+    }
+
+    // Tick poison
+    for (const m of [...G.monsters]) {
+        if (!m.poison) continue;
+        m.poison.ticks--;
+        const ko = dealDamage(m, m.poison.dmg);
+        if (ko) onMonsterDied(m, null);
+        if (m.poison && m.poison.ticks <= 0) m.poison = null;
+    }
+
+    // Defeat check
+    if (G.party.length > 0 && G.party.every(h => h.stunTicks > 0 || h.hp <= 0)) {
+        onPartyDefeated();
+    }
+}
+
+function onPartyDefeated() {
+    log('=== Party defeated — retreating... ===', '#F44');
+    G.inCombat = false;
+    G.monsters = [];
+    G.currentRoom = 0;
+    for (const h of G.party) {
+        h.hp = Math.max(1, Math.floor(h.maxHP * 0.3));
+        h.stunTicks = 0;
+    }
+    G.traveling = true;
+    G.travelTicks = CFG.TRAVEL_TICKS;
+    G.nextDungeonIdx = G.currentDungeonIdx;
+}
+
+// ===== REGEN =====
+function regenTick() {
+    for (const h of G.party) {
+        if (h.stunTicks > 0) continue;
+        h.hp = Math.min(h.maxHP, h.hp + Math.max(1, Math.floor(h.maxHP * CFG.HP_REGEN_RATE)));
+        h.sp = Math.min(h.maxSP, h.sp + Math.max(1, Math.floor(h.maxSP * CFG.SP_REGEN_RATE)));
+
+        // Tick down shield block
+        if (h.shieldActive) {
+            h.shieldTicks--;
+            if (h.shieldTicks <= 0) h.shieldActive = false;
+        }
+    }
+}
+
+// ===== LEVELING =====
+function heroGainXP(hero, amt) {
+    hero.xp += amt;
+    while (hero.xp >= hero.xpNeeded) {
+        hero.xp -= hero.xpNeeded;
+        hero.level++;
+        hero.xpNeeded = xpForLevel(hero.level);
+        heroLevelUp(hero);
+    }
+}
+
+function heroLevelUp(hero) {
+    hero.maxHP = Math.floor(hero.maxHP * 1.08);
+    hero.hp = hero.maxHP;
+    hero.maxSP = Math.floor(hero.maxSP * 1.06);
+    hero.sp = hero.maxSP;
+    hero.dmg  = Math.floor(hero.dmg * 1.05 + 0.5);
+    hero.armor = Math.floor(hero.armor + 0.3);
+    hero.atk  = Math.floor(hero.atk + 0.5);
+    hero.def  = Math.floor(hero.def + 0.4);
+    log(`${hero.name} reached level ${hero.level}!`, '#FF4');
+    checkAchievements('maxLevel', Math.max(...G.party.map(h => h.level)));
+}
+
+// ===== DUNGEON / MAP =====
+function onRoomCleared() {
+    const dung = G.dungeons[G.currentDungeonIdx];
+    if (!dung) return;
+    const isLast = G.currentRoom >= dung.rooms - 1;
+    if (isLast) {
+        onDungeonCleared(dung);
+    } else {
+        G.currentRoom++;
+        G.inCombat = false;
+        G.roomDelay = CFG.ROOM_CLEAR_DELAY;
+        log(`Room ${G.currentRoom} cleared! Moving ahead...`, '#8AF');
+    }
+}
+
+function onDungeonCleared(dung) {
+    if (!dung.cleared) {
+        dung.cleared = true;
+        G.dungeonsCleared++;
+        G.adventurePoints += 10;
+        log(`=== DUNGEON CLEARED: ${dung.name} ===`, '#3AF');
+        log(`Castle available for ${dung.castleCost.toLocaleString()} gold.`, '#FA0');
+        checkAchievements('dungeonsCleared', G.dungeonsCleared);
+
+        // Check win condition
+        if (G.dungeonsCleared >= G.dungeons.length) {
+            log('=== ALL DUNGEONS CLEARED — You have won CLICKPOCALYPSE II! ===', '#FA0');
+        }
+    }
+    G.inCombat = false;
+    G.currentRoom = 0;
+    nextDungeon();
+}
+
+function nextDungeon() {
+    const uncleared = G.dungeons.filter(d => !d.cleared);
+    const idx = uncleared.length > 0
+        ? uncleared[0].id
+        : (G.currentDungeonIdx + 1) % G.dungeons.length;
+
+    if (idx !== G.currentDungeonIdx) {
+        G.traveling = true;
+        G.travelTicks = CFG.TRAVEL_TICKS;
+        G.nextDungeonIdx = idx;
+        log(`Traveling to ${G.dungeons[idx].name}...`, '#8AF');
+    } else {
+        enterDungeon(G.currentDungeonIdx);
+    }
+}
+
+function enterDungeon(idx) {
+    G.currentDungeonIdx = idx;
+    G.currentRoom = 0;
+    G.traveling = false;
+    G.roomDelay = 0;
+    const d = G.dungeons[idx];
+    log(`=== Entering ${d.name} (Level ${d.level}) ===`, '#8CF');
+    enterRoom();
+}
+
+function enterRoom() {
+    const d = G.dungeons[G.currentDungeonIdx];
+    if (!d) return;
+    const isLast = G.currentRoom >= d.rooms - 1;
+    G.monsters = spawnRoom(d.level, isLast);
+    G.inCombat = true;
+    const names = G.monsters.map(m => m.name).join(', ');
+    log(`Room ${G.currentRoom + 1}/${d.rooms}: ${names}`, '#FFF');
+}
+
+// ===== CASTLE & FARM =====
+window.buyCastle = function(idx) {
+    const d = G.dungeons[idx];
+    if (!d || !d.cleared || d.castlePurchased) return;
+    if (G.gold < d.castleCost) { log('Not enough gold!', '#F44'); return; }
+    G.gold -= d.castleCost;
+    d.castlePurchased = true;
+    G.castlesConquered++;
+    G.adventurePoints += 20;
+    log(`Castle conquered in ${d.name}! +20 AP`, '#FA0');
+    checkAchievements('castlesConquered', G.castlesConquered);
+    updateDungeonsUI();
 };
 
-window.onbeforeunload = () => Game.save();
+window.activateFarm = function(idx) {
+    const d = G.dungeons[idx];
+    if (!d || !d.castlePurchased || d.farmActive) return;
+    d.farmActive = true;
+    d.farmKillRate = Math.max(1, Math.floor(d.level * 0.5));
+    log(`Farm activated in ${d.name}! +${d.farmKillRate} kills/tick`, '#4FA');
+    updateDungeonsUI();
+};
+
+function farmTick() {
+    for (const d of G.dungeons) {
+        if (!d.farmActive) continue;
+        G.kills += d.farmKillRate;
+        const gold = Math.floor(d.farmKillRate * d.level * G.upgrades.goldChance * G.upgrades.maxGold * 0.5);
+        G.gold += gold;
+        G.goldEarned += gold;
+    }
+}
+
+// ===== MONSTER UPGRADES =====
+function upgradeLevel(id) { return G.upgradeLevels[id] || 0; }
+
+function upgradeCost(def) {
+    return Math.floor(def.baseCost * Math.pow(def.costMult, upgradeLevel(def.id)));
+}
+
+window.buyUpgrade = function(id) {
+    const def = UPGRADE_DEFS.find(d => d.id === id);
+    if (!def) return;
+    const cost = upgradeCost(def);
+    if (G.gold < cost) return;
+    G.gold -= cost;
+    G.upgradeLevels[id] = upgradeLevel(id) + 1;
+    def.apply(G.upgrades, G.upgradeLevels[id]);
+    updateMonsterUpgradesUI();
+};
+
+// ===== ACHIEVEMENTS =====
+function checkAchievements(type, value) {
+    for (const def of ACHIEVEMENT_DEFS) {
+        if (def.type !== type) continue;
+        if (G.achievements[def.id]) continue;
+        if (value >= def.threshold) {
+            G.achievements[def.id] = true;
+            G.adventurePoints += def.reward;
+            log(`ACHIEVEMENT UNLOCKED: ${def.name}! +${def.reward} AP`, '#FA0');
+        }
+    }
+}
+
+function checkAllAchievements() {
+    checkAchievements('kills', G.kills);
+    checkAchievements('dungeonsCleared', G.dungeonsCleared);
+    checkAchievements('castlesConquered', G.castlesConquered);
+    checkAchievements('goldEarned', G.goldEarned);
+    checkAchievements('minionsSummoned', G.minionsSummoned);
+    checkAchievements('spellsCast', G.stats.spellsCast);
+    checkAchievements('criticalHits', G.stats.criticalHits);
+    if (G.party.length) {
+        checkAchievements('maxLevel', Math.max(...G.party.map(h => h.level)));
+    }
+}
+
+// ===== SAVE / LOAD =====
+function saveGame() {
+    try {
+        localStorage.setItem('cp2_save', JSON.stringify({
+            v: 2,
+            gold: G.gold, kills: G.kills, goldEarned: G.goldEarned,
+            ap: G.adventurePoints,
+            dungeonsCleared: G.dungeonsCleared,
+            castlesConquered: G.castlesConquered,
+            minionsSummoned: G.minionsSummoned,
+            achievements: G.achievements,
+            stats: G.stats,
+            dungeons: G.dungeons.map(d => ({
+                id: d.id, cleared: d.cleared,
+                castlePurchased: d.castlePurchased, farmActive: d.farmActive,
+            })),
+            upgradeLevels: G.upgradeLevels,
+            party: G.party.map(h => ({
+                id: h.id, name: h.name, classId: h.classId,
+                level: h.level, xp: h.xp, xpNeeded: h.xpNeeded,
+                maxHP: h.maxHP, hp: h.hp, maxSP: h.maxSP, sp: h.sp,
+                atk: h.atk, def: h.def, dmg: h.dmg, armor: h.armor,
+                kills: h.kills, totalDmg: h.totalDmg, healing: h.healing,
+            })),
+            ts: Date.now(),
+        }));
+    } catch(e) { console.error('Save failed', e); }
+}
+
+function loadSave() {
+    try {
+        const raw = localStorage.getItem('cp2_save');
+        if (!raw) return false;
+        const s = JSON.parse(raw);
+        if (!s || s.v !== 2) return false;
+
+        G.gold = s.gold || 0;
+        G.kills = s.kills || 0;
+        G.goldEarned = s.goldEarned || 0;
+        G.adventurePoints = s.ap || 0;
+        G.dungeonsCleared = s.dungeonsCleared || 0;
+        G.castlesConquered = s.castlesConquered || 0;
+        G.minionsSummoned = s.minionsSummoned || 0;
+        G.achievements = s.achievements || {};
+        G.stats = Object.assign(G.stats, s.stats || {});
+
+        if (s.dungeons) {
+            for (const ds of s.dungeons) {
+                const d = G.dungeons.find(x => x.id === ds.id);
+                if (!d) continue;
+                d.cleared = ds.cleared;
+                d.castlePurchased = ds.castlePurchased;
+                d.farmActive = ds.farmActive;
+                if (d.farmActive) d.farmKillRate = Math.max(1, Math.floor(d.level * 0.5));
+            }
+        }
+
+        if (s.upgradeLevels) {
+            G.upgradeLevels = s.upgradeLevels;
+            for (const def of UPGRADE_DEFS) {
+                const lv = G.upgradeLevels[def.id] || 0;
+                if (lv > 0) def.apply(G.upgrades, lv);
+            }
+        }
+
+        // Offline farm income (max 2 hrs)
+        if (G.settings.offlineProcessing && s.ts) {
+            const ticks = Math.min(Math.floor((Date.now() - s.ts) / CFG.TICK_MS), 28800);
+            if (ticks > 60) {
+                let totalKills = 0, totalGold = 0;
+                for (const d of G.dungeons) {
+                    if (!d.farmActive) continue;
+                    totalKills += d.farmKillRate * ticks;
+                    totalGold += Math.floor(d.farmKillRate * ticks * d.level * G.upgrades.goldChance * G.upgrades.maxGold * 0.5);
+                }
+                G.kills += totalKills;
+                G.gold += totalGold;
+                G.goldEarned += totalGold;
+                if (totalKills > 0) log(`Offline: +${totalKills} kills, +${totalGold} gold from farms.`, '#8AF');
+            }
+        }
+
+        return true;
+    } catch(e) { console.error('Load failed', e); return false; }
+}
+
+// ===== UI =====
+function el(id) { return document.getElementById(id); }
+function setHTML(id, html) { const e = el(id); if (e) e.innerHTML = html; }
+
+function showTab(tabId) {
+    document.querySelectorAll('.tabContainer').forEach(e => e.style.display = 'none');
+    document.querySelectorAll('#gameTabMenu li').forEach(e => e.className = '');
+
+    const tab = el(tabId + 'TabContent');
+    if (tab) tab.style.display = '';
+    const li = el('tab_' + tabId);
+    if (li) li.className = 'selectedTab';
+
+    G.activeTab = tabId;
+    if (tabId === 'monsters') updateMonsterUpgradesUI();
+    if (tabId === 'dungeons') updateDungeonsUI();
+    if (tabId === 'achievements') updateAchievementsUI();
+    if (tabId === 'stats') updateStatsUI();
+}
+
+function updateUI() {
+    setHTML('goldAmountCell', Math.floor(G.gold).toLocaleString());
+    setHTML('killsCountCell', G.kills.toLocaleString());
+    setHTML('expCell', G.adventurePoints.toLocaleString());
+    updatePartyBars();
+    updateCombatLog();
+    updateEncounterPanel();
+}
+
+function updatePartyBars() {
+    for (let i = 0; i < 5; i++) {
+        const h = G.party[i];
+        const panel = el('gameTabAdventurerInfo' + i);
+        if (!panel) continue;
+        if (!h) { panel.innerHTML = ''; continue; }
+
+        const hpPct = Math.round((h.hp / h.maxHP) * 100);
+        const spPct = Math.round((h.sp / h.maxSP) * 100);
+        const hpColor = hpPct > 50 ? '#4c4' : hpPct > 25 ? '#fa0' : '#f44';
+        const xpPct = Math.round((h.xp / h.xpNeeded) * 100);
+
+        let tag = '';
+        if (h.stunTicks > 0) tag = `<span class="heroTag stunTag">STUN</span>`;
+        else if (h.stealthed) tag = `<span class="heroTag stealthTag">STEALTH</span>`;
+        else if (h.rageActive) tag = `<span class="heroTag rageTag">RAGE</span>`;
+
+        panel.innerHTML = `
+            <div class="heroRow">
+                <span class="heroName">${h.name}</span>
+                <span class="heroClass">${h.className} Lv.${h.level}</span>
+                ${tag}
+            </div>
+            <div class="statBars">
+                <div class="barWrap"><div class="barFill" style="width:${hpPct}%;background:${hpColor}"></div><span class="barLabel">${h.hp}/${h.maxHP} HP</span></div>
+                <div class="barWrap"><div class="barFill" style="width:${spPct}%;background:#44a"></div><span class="barLabel">${h.sp}/${h.maxSP} SP</span></div>
+                <div class="barWrap"><div class="barFill" style="width:${xpPct}%;background:#664"></div><span class="barLabel">XP ${xpPct}%</span></div>
+            </div>`;
+    }
+}
+
+function updateCombatLog() {
+    const el2 = el('combatLog');
+    if (!el2) return;
+    el2.innerHTML = G.combatLog.slice(0, 40)
+        .map(e => `<div style="color:${e.color}">${e.msg}</div>`)
+        .join('');
+}
+
+function updateEncounterPanel() {
+    const panel = el('encounterNotificationPanel');
+    if (!panel) return;
+    const dung = G.dungeons[G.currentDungeonIdx];
+
+    if (G.traveling) {
+        panel.style.display = '';
+        panel.innerHTML = `<div class="encounterNotificationDiv">Traveling to ${G.dungeons[G.nextDungeonIdx]?.name || '...'}...</div>`;
+    } else if (G.inCombat && dung) {
+        panel.style.display = '';
+        const isBoss = G.monsters.some(m => m.isBoss);
+        const cls = isBoss ? 'bossEncounterNotificationDiv' : 'encounterNotificationDiv';
+        const summary = G.monsters.filter(m => m.hp > 0)
+            .map(m => `${m.name} (${m.hp}/${m.maxHP})`)
+            .join(' · ');
+        panel.innerHTML = `<div class="${cls}">${dung.name} – Room ${G.currentRoom + 1}/${dung.rooms} › ${summary}</div>`;
+    } else if (dung) {
+        panel.style.display = '';
+        panel.innerHTML = `<div class="encounterNotificationDiv">${dung.name} — Cleared</div>`;
+    } else {
+        panel.style.display = 'none';
+    }
+}
+
+function updateMonsterUpgradesUI() {
+    const container = el('monsterUpgradeButtonsContainer');
+    if (!container) return;
+    container.innerHTML = '';
+
+    for (const def of UPGRADE_DEFS) {
+        const cost = upgradeCost(def);
+        const lv = upgradeLevel(def.id);
+        const canAfford = G.gold >= cost;
+        const btn = document.createElement('div');
+        btn.className = canAfford ? 'upgradeButton' : 'disabledUpgradeButton';
+        btn.style.marginBottom = '3px';
+        btn.textContent = `${def.name} (Lv.${lv}) — ${cost.toLocaleString()} g`;
+        if (canAfford) btn.onclick = () => buyUpgrade(def.id);
+        container.appendChild(btn);
+    }
+
+    setHTML('goldDropChance',  (G.upgrades.goldChance * 100).toFixed(2) + '%');
+    setHTML('maxGoldPerDrop',  G.upgrades.maxGold + ' g');
+    setHTML('minGoldPerDrop',  G.upgrades.minGold + ' g');
+    setHTML('itemDropChance',  (G.upgrades.itemChance * 100).toFixed(2) + '%');
+    setHTML('killCountPanel',  G.kills.toLocaleString());
+}
+
+function updateDungeonsUI() {
+    const container = el('dungeonListContainer');
+    if (!container) return;
+    container.innerHTML = '';
+
+    for (const d of G.dungeons) {
+        const div = document.createElement('div');
+        div.className = 'dungeonEntry';
+
+        const clearBadge = d.cleared
+            ? `<span style="color:#4c4">✓ Cleared</span>`
+            : `<span style="color:#888">Not Cleared</span>`;
+
+        let castlePart = '';
+        if (d.castlePurchased) {
+            castlePart = `<span style="color:#fa0">🏰 Castle Owned</span>`;
+        } else if (d.cleared) {
+            const canAfford = G.gold >= d.castleCost;
+            castlePart = `<span class="${canAfford ? 'upgradeButton' : 'disabledUpgradeButton'}" 
+                style="cursor:${canAfford ? 'pointer' : 'default'}"
+                onclick="buyCastle(${d.id})">Buy Castle (${d.castleCost.toLocaleString()} g)</span>`;
+        }
+
+        let farmPart = '';
+        if (d.farmActive) {
+            farmPart = `<span style="color:#4fa">Farm Active (+${d.farmKillRate} kills/tick)</span>`;
+        } else if (d.castlePurchased) {
+            farmPart = `<span class="upgradeButton" style="cursor:pointer" onclick="activateFarm(${d.id})">Start Farm</span>`;
+        }
+
+        div.innerHTML = `
+            <span style="color:#aaa;min-width:22px;display:inline-block">${d.id + 1}.</span>
+            <b>${d.name}</b> <span style="color:#888">(Lv.${d.level}, ${d.rooms} rooms)</span>
+            &nbsp;${clearBadge}
+            &nbsp;${castlePart}
+            &nbsp;${farmPart}
+        `;
+        container.appendChild(div);
+    }
+}
+
+function updateAchievementsUI() {
+    const container = el('achievementsContainer');
+    if (!container) return;
+    container.innerHTML = '';
+
+    let unlockedCount = 0;
+    for (const def of ACHIEVEMENT_DEFS) {
+        const unlocked = !!G.achievements[def.id];
+        if (unlocked) unlockedCount++;
+        const div = document.createElement('div');
+        div.className = 'achievementEntry' + (unlocked ? ' achievementUnlocked' : '');
+        div.innerHTML = `
+            <span style="color:${unlocked ? '#fa0' : '#888'}">${unlocked ? '★' : '☆'}</span>
+            <b>${def.name}</b>
+            <span style="color:#aaa;font-size:11px;margin-left:5px">+${def.reward} AP</span>
+        `;
+        container.appendChild(div);
+    }
+
+    const header = document.createElement('div');
+    header.style.cssText = 'padding:5px;color:#aaa;border-bottom:1px solid #2b2b32;margin-bottom:5px;';
+    header.textContent = `Unlocked: ${unlockedCount} / ${ACHIEVEMENT_DEFS.length}`;
+    container.insertBefore(header, container.firstChild);
+}
+
+function updateStatsUI() {
+    const container = el('statsContainer');
+    if (!container) return;
+
+    const row = (label, val) => `<tr><td>${label}</td><td style="text-align:right">${typeof val === 'number' ? val.toLocaleString() : val}</td></tr>`;
+    let html = `<table class="statsTable">
+        ${row('Total Kills', G.kills)}
+        ${row('Gold Earned', G.goldEarned)}
+        ${row('Dungeons Cleared', G.dungeonsCleared)}
+        ${row('Castles Conquered', G.castlesConquered)}
+        ${row('Adventure Points', G.adventurePoints)}
+        ${row('Melee Attacks', G.stats.meleeAttacks)}
+        ${row('Ranged Attacks', G.stats.rangedAttacks)}
+        ${row('Spells Cast', G.stats.spellsCast)}
+        ${row('Critical Hits', G.stats.criticalHits)}
+        ${row('Times Stunned', G.stats.timesStunned)}
+        ${row('Minions Summoned', G.minionsSummoned)}
+    </table>`;
+
+    if (G.party.length) {
+        html += '<br><div class="sectionTitle">Hero Stats</div>';
+        for (const h of G.party) {
+            html += `
+            <div class="heroStatBlock">
+                <b>${h.name}</b> the ${h.className} — Level ${h.level}
+                <table class="statsTable">
+                    ${row('Max HP', h.maxHP)} ${row('Max SP', h.maxSP)}
+                    ${row('Attack', h.atk)} ${row('Defense', h.def)}
+                    ${row('Damage', h.dmg)} ${row('Armor', h.armor)}
+                    ${row('Crit Chance', (h.crit * 100).toFixed(0) + '%')}
+                    ${row('Kills', h.kills)} ${row('Damage Dealt', h.totalDmg)}
+                    ${h.healing ? row('Healing Done', h.healing) : ''}
+                </table>
+            </div>`;
+        }
+    }
+
+    container.innerHTML = html;
+}
+
+// ===== PARTY CREATION =====
+function buildPartyCreation() {
+    const container = el('partyCreationTabContent');
+    container.innerHTML = '';
+
+    const intro = document.createElement('div');
+    intro.className = 'partyCreationIntroductionPanel';
+    intro.innerHTML = `
+        <div class="sectionTitle" style="font-size:14px">The land of CLICKPOCALYPSE needs you!</div>
+        <p style="font-size:13px;margin:5px 0">All dungeons have been overrun with cruel monsters that just plain need killing.
+        Select your brave champions and murder every last one of them.</p>`;
+    container.appendChild(intro);
+
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'position:absolute;top:112px;left:0;right:0;bottom:60px;display:flex;gap:4px;padding:3px;';
+
+    const leftPanel = document.createElement('div');
+    leftPanel.style.cssText = 'flex:1;overflow-y:auto;border:1px solid #2b2b32;';
+
+    const rightPanel = document.createElement('div');
+    rightPanel.id = 'selectedPartyPanel';
+    rightPanel.style.cssText = 'flex:1;overflow-y:auto;border:1px solid #2b2b32;';
+
+    const startBtn = document.createElement('div');
+    startBtn.id = 'partyStartBtn';
+    startBtn.className = 'disabledUpgradeButton';
+    startBtn.style.cssText = 'position:absolute;bottom:3px;left:3px;right:3px;padding:12px;text-align:center;font-size:14px;';
+    startBtn.textContent = 'Select Your Party to Begin';
+
+    const selected = [];
+
+    function refresh() {
+        const rp = el('selectedPartyPanel');
+        rp.innerHTML = `<div style="font-weight:bold;padding:6px;border-bottom:1px solid #2b2b32">Selected Party (${selected.length}/4)</div>`;
+
+        selected.forEach((s, i) => {
+            const cls = CLASSES.find(c => c.id === s.classId);
+            const row = document.createElement('div');
+            row.style.cssText = 'border:1px solid #3a5;margin:4px;padding:6px;position:relative;';
+            row.innerHTML = `
+                <b>${cls.name}</b><br>
+                <input type="text" placeholder="Name your hero..." value="${s.name}"
+                    style="background:#111;color:#fff;border:1px solid #3AA5E6;padding:2px;margin-top:4px;width:160px;"
+                    id="nameInput_${i}">
+                <div style="position:absolute;top:4px;right:4px;cursor:pointer;border:1px solid #3AA5E6;padding:2px 5px;background:#0b0b12;"
+                    id="removeBtn_${i}">X</div>`;
+            rp.appendChild(row);
+
+            // Bind events after append
+            const inp = el(`nameInput_${i}`);
+            inp.oninput = () => {
+                selected[i].name = inp.value.trim();
+                const valid = selected.length > 0 && selected.every(s => s.name.length > 0);
+                const btn = el('partyStartBtn');
+                if (btn) {
+                    btn.className = valid ? 'upgradeButton' : 'disabledUpgradeButton';
+                    btn.style.cursor = valid ? 'pointer' : 'default';
+                    btn.textContent = valid ? 'Begin the Adventure!' : 'Name all heroes to continue';
+                }
+            };
+            el(`removeBtn_${i}`).onclick = () => { selected.splice(i, 1); refresh(); };
+        });
+
+        const valid = selected.length > 0 && selected.every(s => s.name.length > 0);
+        const btn = el('partyStartBtn');
+        if (btn) {
+            btn.className = valid ? 'upgradeButton' : 'disabledUpgradeButton';
+            btn.style.cursor = valid ? 'pointer' : 'default';
+            btn.textContent = valid ? 'Begin the Adventure!' : 'Name all heroes to continue';
+        }
+    }
+
+    // Build class selection
+    leftPanel.innerHTML = `<div style="font-weight:bold;padding:6px;border-bottom:1px solid #2b2b32">Choose Classes</div>`;
+    for (const cls of CLASSES) {
+        const row = document.createElement('div');
+        row.className = 'characterSelectionButton';
+        row.style.cssText = 'margin:4px;padding:6px;cursor:pointer;';
+        row.innerHTML = `
+            <div><b>${cls.name}</b> <span style="color:#8cf;font-size:10px">${cls.isRanged ? '🏹 Ranged' : '⚔️ Melee'}</span></div>
+            <div style="color:#aaa;font-size:11px;margin-top:2px">${cls.desc}</div>
+            <div style="color:#888;font-size:10px;margin-top:3px">HP:${cls.baseHP} SP:${cls.baseSP} DMG:${cls.baseDmg} ARM:${cls.baseArmor} CRIT:${Math.round(cls.baseCrit*100)}%</div>`;
+        row.onclick = () => {
+            if (selected.length >= 4) return;
+            selected.push({ classId: cls.id, name: cls.name });
+            refresh();
+        };
+        leftPanel.appendChild(row);
+    }
+
+    startBtn.onclick = () => {
+        const valid = selected.filter(s => s.name.trim().length > 0);
+        if (!valid.length) return;
+        for (const s of valid) {
+            const h = createHero(s.classId, s.name.trim());
+            if (h) G.party.push(h);
+        }
+        launchGame();
+    };
+
+    wrap.appendChild(leftPanel);
+    wrap.appendChild(rightPanel);
+    container.appendChild(wrap);
+    container.appendChild(startBtn);
+    refresh();
+}
+
+// ===== GAME START =====
+function launchGame() {
+    G.started = true;
+    G.dungeons = buildDungeons();
+    loadSave();
+
+    el('partyCreationTabContent').style.display = 'none';
+    el('gameTabContent').style.display = '';
+
+    buildGameTabs();
+    showTab('game');
+    nextDungeon();
+    startLoop();
+    log('Your adventure begins!', '#FA0');
+}
+
+function buildGameTabs() {
+    const menu = el('gameTabMenu');
+    menu.innerHTML = '';
+    const ul = document.createElement('ul');
+    const tabs = [
+        ['game', 'Game'], ['monsters', 'Monsters'],
+        ['dungeons', 'Dungeons'], ['achievements', 'Achievements'],
+        ['stats', 'Stats'], ['info', 'Info'],
+    ];
+    for (const [id, label] of tabs) {
+        const li = document.createElement('li');
+        li.id = 'tab_' + id;
+        const a = document.createElement('a');
+        a.textContent = label;
+        a.href = '#';
+        a.onclick = (e) => { e.preventDefault(); showTab(id); };
+        li.appendChild(a);
+        ul.appendChild(li);
+    }
+    menu.appendChild(ul);
+}
+
+// ===== GAME LOOP =====
+let loopId = null;
+
+function startLoop() {
+    if (loopId) clearInterval(loopId);
+    loopId = setInterval(tick, CFG.TICK_MS);
+}
+
+function tick() {
+    if (G.paused) return;
+    G.tick++;
+
+    if (G.traveling) {
+        G.travelTicks--;
+        if (G.travelTicks <= 0) enterDungeon(G.nextDungeonIdx);
+    } else if (G.roomDelay > 0) {
+        G.roomDelay--;
+        if (G.roomDelay === 0) enterRoom();
+    } else {
+        combatTick();
+    }
+
+    if (G.tick % CFG.REGEN_TICKS === 0) regenTick();
+    if (G.tick % 4 === 0) farmTick();
+    if (G.tick % CFG.UI_UPDATE_INTERVAL === 0) updateUI();
+    if (G.tick % 20 === 0) checkAllAchievements();
+    if (G.tick % CFG.SAVE_INTERVAL === 0) saveGame();
+}
+
+// ===== ENTRY POINT =====
+window.Game = {
+    onLoad() {
+        el('pauseButton').onclick = () => {
+            G.paused = !G.paused;
+            el('pauseButton').textContent = G.paused ? 'Resume' : 'Pause';
+        };
+
+        // Pre-build tab containers in HTML that need dynamic content
+        const dungeonsTab = el('dungeonsTabContent');
+        if (dungeonsTab && !el('dungeonListContainer')) {
+            dungeonsTab.innerHTML = `
+                <div style="position:absolute;inset:0;overflow-y:auto;padding:5px;">
+                    <div class="sectionTitle" style="padding:5px;margin-bottom:5px">Dungeons & Castles</div>
+                    <div id="dungeonListContainer"></div>
+                </div>`;
+        }
+
+        const achieveTab = el('achievementsTabContent');
+        if (achieveTab && !el('achievementsContainer')) {
+            achieveTab.innerHTML = `
+                <div style="position:absolute;inset:0;overflow-y:auto;padding:5px;">
+                    <div id="achievementsContainer"></div>
+                </div>`;
+        }
+
+        const statsTab = el('statsTabContent');
+        if (statsTab && !el('statsContainer')) {
+            statsTab.innerHTML = `
+                <div style="position:absolute;inset:0;overflow-y:auto;padding:5px;">
+                    <div id="statsContainer"></div>
+                </div>`;
+        }
+
+        // Build combat log in game tab
+        const gameTab = el('gameTabContent');
+        if (gameTab && !el('combatLog')) {
+            const logDiv = document.createElement('div');
+            logDiv.style.cssText = 'position:absolute;top:3px;left:3px;width:730px;height:400px;border:1px solid #2b2b32;overflow-y:auto;padding:4px;font-size:11px;';
+            logDiv.id = 'combatLog';
+            gameTab.appendChild(logDiv);
+        }
+
+        buildPartyCreation();
+    }
+};
