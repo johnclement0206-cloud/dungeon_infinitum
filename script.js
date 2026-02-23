@@ -102,6 +102,7 @@ window.equipItem = function(heroIdx, itemId) {
     applyItemToHero(hero, item, false);
     log(`${hero.name} equips [${item.name}]!`, RARITY_COLORS[item.rarity]);
     _itemsDirty = true;
+    if (G.activeTab === 'skills') G.skillTreeDirty = true;
 };
 
 function autoEquipIfBetter(item) {
@@ -133,6 +134,7 @@ function hero_dropItem() {
     if (G.inventory.length > 20) G.inventory.shift();
     autoEquipIfBetter(item);
     _itemsDirty = true;
+    if (G.activeTab === 'skills') G.skillTreeDirty = true;
 }
 
 // ===== SKILL TREES =====
@@ -1437,6 +1439,12 @@ function updateUI() {
     updateItemsUI();
     updateSideUpgradesUI();
     if (G.activeTab === 'skills' && G.skillTreeDirty) { updateSkillsUI(); G.skillTreeDirty = false; }
+    else if (G.activeTab === 'skills') {
+        // Refresh just the stats panel (not the SVG) every tick for live values
+        const hero = G.party[G.selectedSkillHeroIdx];
+        const sp = el('skillStatsPanel');
+        if (hero && sp) sp.innerHTML = buildHeroStatsHTML(hero);
+    }
 }
 
 function updatePartyBars() {
@@ -1444,7 +1452,8 @@ function updatePartyBars() {
         const h = G.party[i];
         const panel = el('gameTabAdventurerInfo' + i);
         if (!panel) continue;
-        if (!h) { panel.innerHTML = ''; continue; }
+        if (!h) { panel.style.display = 'none'; continue; }
+        panel.style.display = '';
 
         const hpPct = Math.round((h.hp / h.maxHP) * 100);
         const spPct = Math.round((h.sp / h.maxSP) * 100);
@@ -1596,9 +1605,10 @@ function updateStatsUI() {
     const container = el('statsContainer');
     if (!container) return;
     const row = (label, val) => `<tr><td>${label}</td><td style="text-align:right">${typeof val === 'number' ? val.toLocaleString() : val}</td></tr>`;
-    let html = `<table class="statsTable">
+    const html = `<table class="statsTable">
         ${row('Total Kills', G.kills)}
         ${row('Gold Earned', G.goldEarned)}
+        ${row('Items Found', G.itemsFound || 0)}
         ${row('Dungeons Cleared', G.dungeonsCleared)}
         ${row('Castles Conquered', G.castlesConquered)}
         ${row('Adventure Points', G.adventurePoints)}
@@ -1608,24 +1618,8 @@ function updateStatsUI() {
         ${row('Critical Hits', G.stats.criticalHits)}
         ${row('Times Stunned', G.stats.timesStunned)}
         ${row('Minions Summoned', G.minionsSummoned)}
-    </table>`;
-    if (G.party.length) {
-        html += '<br><div class="sectionTitle">Hero Stats</div>';
-        for (const h of G.party) {
-            html += `<div class="heroStatBlock">
-                <b>${h.name}</b> the ${h.className} — Level ${h.level} &nbsp;<span style="color:#fa0;font-size:11px">${h.skillPoints} skill point${h.skillPoints !== 1 ? 's' : ''} available</span>
-                <table class="statsTable">
-                    ${row('Max HP', h.maxHP)} ${row('Max SP', h.maxSP)}
-                    ${row('Attack', h.atk)}   ${row('Defense', h.def)}
-                    ${row('Damage', h.dmg)}   ${row('Armor', h.armor)}
-                    ${row('Crit Chance', (h.crit * 100).toFixed(1) + '%')}
-                    ${row('Kills', h.kills)}  ${row('Damage Dealt', h.totalDmg)}
-                    ${h.healing ? row('Healing Done', h.healing) : ''}
-                    ${row('Nodes Allocated', h.allocatedNodes.length + ' / 17')}
-                </table>
-            </div>`;
-        }
-    }
+    </table>
+    <div style="margin-top:8px;color:#444;font-size:10px;">Hero stats and equipment are shown in the Characters tab.</div>`;
     container.innerHTML = html;
 }
 
@@ -1843,6 +1837,71 @@ function showGlobalNodeTooltip(node, state, mouseEvt) {
     positionTooltip(tt, mouseEvt);
 }
 
+// Compute total bonus from all equipped items for one hero
+function getEquipmentBonus(hero) {
+    const bonus = {};
+    for (const slot of ITEM_SLOTS) {
+        const item = hero.equipment[slot];
+        if (!item) continue;
+        for (const [s, v] of Object.entries(item.stats)) {
+            bonus[s] = (bonus[s] || 0) + v;
+        }
+    }
+    return bonus;
+}
+
+function buildHeroStatsHTML(hero) {
+    const bonus = getEquipmentBonus(hero);
+    const statNames = { maxHP:'Max HP', maxSP:'Max SP', atk:'Attack', def:'Defense', dmg:'Damage', armor:'Armor', crit:'Crit', speed:'Speed' };
+    const fmt = (s, v) => s === 'crit' ? (v * 100).toFixed(1) + '%' : String(v);
+    const fmtBonus = (s, v) => s === 'crit' ? `+${(v * 100).toFixed(1)}%` : `+${v}`;
+
+    let rows = '';
+    for (const [s, label] of Object.entries(statNames)) {
+        const total = hero[s] !== undefined ? hero[s] : 0;
+        const b = bonus[s] || 0;
+        const base = s === 'crit' ? parseFloat((total - b).toFixed(3)) : total - b;
+        const bonusStr = b ? `<td class="charStatBonus">${fmtBonus(s, b)}</td><td style="color:#8af">${fmt(s, total)}</td>` : `<td></td><td style="color:#8af">${fmt(s, total)}</td>`;
+        rows += `<tr><td style="color:#888;">${label}</td><td style="color:#ccc;">${fmt(s, base)}</td>${bonusStr}</tr>`;
+    }
+
+    // Equipment slots
+    const slotIcons = { weapon:'⚔', helm:'🪖', armor:'🛡', boots:'👢', trinket:'💍' };
+    let equipRows = '';
+    for (const slot of ITEM_SLOTS) {
+        const item = hero.equipment[slot];
+        const icon = slotIcons[slot];
+        if (item) {
+            const statsStr = Object.entries(item.stats).map(([s,v]) => fmtBonus(s,v)+' '+s).join(' · ');
+            equipRows += `<div class="charEquipSlot">
+                <span class="charEquipIcon">${icon}</span>
+                <span class="charEquipName" style="color:${RARITY_COLORS[item.rarity]}" title="${statsStr}">${item.name}</span>
+            </div>`;
+        } else {
+            equipRows += `<div class="charEquipSlot">
+                <span class="charEquipIcon">${icon}</span>
+                <span class="charEquipEmpty">${slot}</span>
+            </div>`;
+        }
+    }
+
+    const spText = hero.skillPoints > 0
+        ? `<span style="color:#fa0">⬟ ${hero.skillPoints} skill point${hero.skillPoints !== 1 ? 's' : ''} available</span>`
+        : `<span style="color:#444">${hero.allocatedNodes.length}/17 nodes</span>`;
+
+    return `
+        <div style="font-weight:bold;font-size:12px;color:#fa0;margin-bottom:2px;">${hero.name}</div>
+        <div style="color:#8af;font-size:10px;margin-bottom:4px;">${hero.className} · Level ${hero.level}</div>
+        <div style="font-size:10px;margin-bottom:6px;">${spText}</div>
+        <div style="font-size:10px;color:#555;letter-spacing:1px;margin-bottom:3px;border-bottom:1px solid #1a1a24;padding-bottom:2px;">STATS</div>
+        <table class="charStatTable">
+            <tr><th style="text-align:left;color:#444;font-weight:normal;">Stat</th><th style="color:#444;font-weight:normal;">Base</th><th style="color:#4f8;font-weight:normal;">+Item</th><th style="color:#8af;font-weight:normal;">Total</th></tr>
+            ${rows}
+        </table>
+        <div style="font-size:10px;color:#555;letter-spacing:1px;margin-bottom:4px;border-bottom:1px solid #1a1a24;padding-bottom:2px;margin-top:6px;">EQUIPMENT</div>
+        ${equipRows}`;
+}
+
 // ===== SKILL TREE UI (per-hero) =====
 
 function updateSkillsUI() {
@@ -1850,7 +1909,6 @@ function updateSkillsUI() {
     const selector = el('skillHeroSelector');
     if (!wrap || !selector) return;
 
-    // Hero selector buttons
     selector.innerHTML = '';
     G.party.forEach((h, i) => {
         const btn = document.createElement('div');
@@ -1862,12 +1920,20 @@ function updateSkillsUI() {
     });
 
     const hero = G.party[G.selectedSkillHeroIdx];
-    if (!hero) { wrap.innerHTML = '<div style="padding:20px;color:#555">No hero selected.</div>'; return; }
+    if (!hero) {
+        wrap.innerHTML = '<div style="padding:20px;color:#555">No hero selected.</div>';
+        const sp = el('skillStatsPanel');
+        if (sp) sp.innerHTML = '';
+        return;
+    }
 
-    // Rebuild SVG
+    // Left panel: hero stats + equipment
+    const statsPanel = el('skillStatsPanel');
+    if (statsPanel) statsPanel.innerHTML = buildHeroStatsHTML(hero);
+
+    // Right panel: skill tree SVG
     wrap.innerHTML = '';
-    const svg = buildSkillSVG(hero);
-    wrap.appendChild(svg);
+    wrap.appendChild(buildSkillSVG(hero));
 }
 
 function buildSkillSVG(hero) {
@@ -2223,43 +2289,54 @@ function buildUpgradesTab() {
     tab.innerHTML = '';
 
     const wrap = document.createElement('div');
-    wrap.style.cssText = 'position:absolute;inset:0;display:flex;gap:0;';
+    wrap.style.cssText = 'position:absolute;inset:0;display:flex;overflow:hidden;';
 
-    // Left: upgrade buttons + stats
+    // Left: upgrade buttons + stat values
     const left = document.createElement('div');
-    left.style.cssText = 'width:300px;flex-shrink:0;border-right:1px solid #2b2b32;overflow-y:auto;padding:6px;';
-    left.innerHTML = `
-        <div class="sectionTitle" style="padding:4px 0 6px;">Monster Upgrades</div>
-        <div id="monsterUpgradeButtonsContainer" class="monsterUpgradeButtonsContainer"></div>
-        <table class="monsterUpgradeValuesContainer" style="margin-top:8px;">
-            <tr><th class="upgradeName">Stat</th><th class="upgradeValue">Value</th></tr>
-            <tr><td class="upgradeName">Gold drop chance</td><td id="goldDropChance" class="upgradeValue">35%</td></tr>
-            <tr><td class="upgradeName">Max gold / drop</td><td id="maxGoldPerDrop" class="upgradeValue">20 g</td></tr>
-            <tr><td class="upgradeName">Min gold / drop</td><td id="minGoldPerDrop" class="upgradeValue">3 g</td></tr>
-            <tr><td class="upgradeName">Item drop chance</td><td id="itemDropChance" class="upgradeValue">1%</td></tr>
-        </table>`;
+    left.className = 'upgradesLeft';
+
+    const leftTitle = document.createElement('div');
+    leftTitle.className = 'sectionTitle';
+    leftTitle.style.cssText = 'margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid #2b2b32;';
+    leftTitle.textContent = 'Monster Upgrades';
+    left.appendChild(leftTitle);
+
+    // Upgrade buttons container — plain div, no conflicting class
+    const upBtns = document.createElement('div');
+    upBtns.id = 'monsterUpgradeButtonsContainer';
+    left.appendChild(upBtns);
+
+    // Stats table
+    const statTitle = document.createElement('div');
+    statTitle.style.cssText = 'font-size:10px;color:#555;margin-top:10px;margin-bottom:4px;letter-spacing:1px;';
+    statTitle.textContent = 'CURRENT VALUES';
+    left.appendChild(statTitle);
+
+    const statsWrap = document.createElement('table');
+    statsWrap.style.cssText = 'width:100%;border-collapse:collapse;font-size:11px;';
+    statsWrap.innerHTML = `
+        <tr><th style="text-align:left;color:#666;font-weight:normal;padding:2px 0;">Stat</th><th style="text-align:right;color:#666;font-weight:normal;">Value</th></tr>
+        <tr><td style="color:#aaa;">Gold drop chance</td><td id="goldDropChance" style="text-align:right;color:#fa0;">35%</td></tr>
+        <tr><td style="color:#aaa;">Max gold / drop</td><td id="maxGoldPerDrop" style="text-align:right;color:#fa0;">20 g</td></tr>
+        <tr><td style="color:#aaa;">Min gold / drop</td><td id="minGoldPerDrop" style="text-align:right;color:#fa0;">3 g</td></tr>
+        <tr><td style="color:#aaa;">Item drop chance</td><td id="itemDropChance" style="text-align:right;color:#fa0;">1%</td></tr>`;
+    left.appendChild(statsWrap);
 
     // Right: global mastery tree
     const right = document.createElement('div');
-    right.style.cssText = 'flex:1;overflow-y:auto;padding:6px;display:flex;flex-direction:column;align-items:center;';
+    right.className = 'upgradesRight';
     right.innerHTML = `
-        <div class="sectionTitle" style="padding:4px 0 2px;">⬡ Global Mastery</div>
-        <div style="font-size:10px;color:#555;margin-bottom:6px;">Spend AP to buff all heroes permanently</div>
-        <div id="globalApLabel" style="font-size:12px;color:#8cf;margin-bottom:4px;"></div>
+        <div class="sectionTitle" style="margin-bottom:2px;">⬡ Global Mastery</div>
+        <div style="font-size:10px;color:#555;margin-bottom:6px;">Spend AP to permanently buff all heroes</div>
+        <div id="globalApLabel" style="font-size:12px;color:#8cf;margin-bottom:6px;"></div>
         <div id="globalTreeContainer"></div>
         <div id="globalRecruitArea" style="margin-top:6px;"></div>`;
-
-    // Kill count header
-    const killHeader = document.createElement('div');
-    killHeader.style.cssText = 'position:absolute;top:3px;right:3px;font-size:11px;color:#888;';
-    killHeader.innerHTML = `<span id="killCountPanel">0</span> ☠`;
 
     wrap.appendChild(left);
     wrap.appendChild(right);
     tab.appendChild(wrap);
-    tab.appendChild(killHeader);
 
-    // Mark as built
+    // Marker so we don't rebuild
     const marker = document.createElement('div');
     marker.id = 'upgradesTabBuilt';
     marker.style.display = 'none';
@@ -2288,7 +2365,7 @@ function buildGameTabs() {
     menu.innerHTML = '';
     const ul = document.createElement('ul');
     const tabs = [
-        ['game', 'Game'], ['skills', 'Skills'], ['upgrades', 'Upgrades'],
+        ['game', 'Game'], ['skills', 'Characters'], ['upgrades', 'Upgrades'],
         ['dungeons', 'Dungeons'], ['achievements', 'Achievements'],
         ['stats', 'Stats'], ['info', 'Info'],
     ];
@@ -2360,12 +2437,15 @@ window.Game = {
             statsTab.innerHTML = `<div style="position:absolute;inset:0;overflow-y:auto;padding:5px;"><div id="statsContainer"></div></div>`;
         }
 
-        // Skills tab — hero selector + SVG canvas, no info panel (uses floating tooltip now)
+        // Characters tab — hero selector + left stats panel + right skill tree
         const skillsTab = el('skillsTabContent');
         if (skillsTab) {
             skillsTab.innerHTML = `
                 <div class="skillHeroSelector" id="skillHeroSelector"></div>
-                <div class="skillTreeWrap" id="skillTreeWrap"></div>`;
+                <div class="skillContentRow" id="skillContentRow">
+                    <div class="skillStatsPanel" id="skillStatsPanel"></div>
+                    <div class="skillTreeWrap" id="skillTreeWrap"></div>
+                </div>`;
         }
 
         // Combat log — shorter to give room to party bars
