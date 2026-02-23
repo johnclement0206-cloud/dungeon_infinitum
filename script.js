@@ -1,7 +1,8 @@
 'use strict';
 
 // ============================================================
-// CLICKPOCALYPSE 2 - Clean Rewrite
+// DUNGEON INFINITUM
+// An idle RPG inspired by Clickpocalypse 2
 // ============================================================
 
 const CFG = {
@@ -21,6 +22,51 @@ const CFG = {
 // Each tree has 17 nodes: root → 3 branches → 2 tier2 per branch → notable tier3 → 2 keystones → 1 grand keystone
 // Effects: { stat: string, val: number }  stats: maxHP maxSP dmg armor atk def crit
 // notable/keystone/grand affect visual size only; all nodes cost 1 skill point
+
+// ===== GLOBAL MASTERY TREE =====
+// Costs Adventure Points. Buffs apply to ALL current heroes.
+// Grand Keystone "The Fifth" unlocks the 5th party slot.
+// SVG canvas: 265×395 — left/centre/right branches, same topology as hero trees.
+const GLOBAL_TREE = [
+    { id:'root', name:'Shared Resolve',      desc:'A bond forged in fire. All heroes draw strength from each other.',
+      x:130,y:40,  req:[],           cost:0,   notable:0, effects:[{s:'maxHP',v:10},{s:'maxSP',v:8}] },
+    // Left — Attack Speed
+    { id:'l1',   name:'Battle Cadence',      desc:'The party finds a rhythm, attacking with greater coordination.',
+      x:60, y:100, req:['root'],     cost:15,  notable:0, effects:[{s:'atk',v:2}] },
+    { id:'l2a',  name:'Momentum',            desc:'Each kill feeds into the next attack faster.',
+      x:25, y:160, req:['l1'],       cost:15,  notable:0, effects:[{s:'atk',v:2},{s:'def',v:1}] },
+    { id:'l2b',  name:'Quickened Reflexes',  desc:'The party\'s attack timing tightens considerably.',
+      x:95, y:160, req:['l1'],       cost:15,  notable:0, effects:[{s:'speed',v:-1}] },
+    { id:'l3a',  name:'Relentless',          desc:'The party pushes through pain to attack more frequently.',
+      x:25, y:222, req:['l2a'],      cost:30,  notable:1, effects:[{s:'atk',v:4}] },
+    { id:'l3b',  name:'Blur',                desc:'Movement so swift that enemies lose track of the party.',
+      x:95, y:222, req:['l2b'],      cost:30,  notable:1, effects:[{s:'speed',v:-1},{s:'atk',v:2}] },
+    { id:'lks',  name:'Temporal Mastery',    desc:'The party operates at a speed that defies natural limits.',
+      x:60, y:288, req:['l3a','l3b'],cost:60,  notable:2, effects:[{s:'speed',v:-2},{s:'atk',v:5},{s:'crit',v:0.04}] },
+    // Centre — Regen & Spirit
+    { id:'c1',   name:'Natural Recovery',    desc:'The party heals from wounds more readily between strikes.',
+      x:130,y:100, req:['root'],     cost:15,  notable:0, effects:[{s:'maxHP',v:15}] },
+    { id:'c2',   name:'Arcane Wellspring',   desc:'Spirit replenishes faster, enabling more frequent abilities.',
+      x:130,y:168, req:['c1'],       cost:15,  notable:0, effects:[{s:'maxSP',v:20}] },
+    { id:'c3',   name:'Undying',             desc:'The party refuses to stay down. Bodies mend at an alarming rate.',
+      x:130,y:238, req:['c2'],       cost:30,  notable:1, effects:[{s:'maxHP',v:30},{s:'maxSP',v:20}] },
+    // Right — Power
+    { id:'r1',   name:'Empowered',           desc:'Fighting together amplifies each hero\'s damage output.',
+      x:200,y:100, req:['root'],     cost:15,  notable:0, effects:[{s:'dmg',v:3}] },
+    { id:'r2a',  name:'Force of Nature',     desc:'Strikes land with weight beyond what muscle alone provides.',
+      x:165,y:160, req:['r1'],       cost:15,  notable:0, effects:[{s:'dmg',v:4}] },
+    { id:'r2b',  name:'Fortified',           desc:'Collective discipline manifests as physical resilience.',
+      x:235,y:160, req:['r1'],       cost:15,  notable:0, effects:[{s:'armor',v:2},{s:'def',v:2}] },
+    { id:'r3a',  name:'Unleashed',           desc:'The limiters come off. Every strike is a statement.',
+      x:165,y:222, req:['r2a'],      cost:30,  notable:1, effects:[{s:'dmg',v:6},{s:'crit',v:0.03}] },
+    { id:'r3b',  name:'Bastion',             desc:'The party becomes a moving fortress.',
+      x:235,y:222, req:['r2b'],      cost:30,  notable:1, effects:[{s:'armor',v:4},{s:'maxHP',v:20}] },
+    { id:'rks',  name:'Overwhelming Power',  desc:'The combined might of the party becomes a force of nature.',
+      x:200,y:288, req:['r3a','r3b'],cost:60,  notable:2, effects:[{s:'dmg',v:10},{s:'armor',v:3},{s:'crit',v:0.05}] },
+    // Grand Keystone
+    { id:'gk',   name:'The Fifth',           desc:'There is always room for one more. A new hero may join the party.',
+      x:130,y:355, req:['lks','c3','rks'], cost:150, notable:3, effects:[] },
+];
 
 const SKILL_TREES = {
 
@@ -375,7 +421,7 @@ function buildDungeons() {
     return DUNGEON_NAMES.map((name, i) => ({
         id: i, name,
         level: Math.max(1, Math.floor(i * 2.5 + 1)),
-        rooms: 3 + Math.floor(i / 5),
+        rooms: Math.max(7, 10 + Math.floor(i / 3) + randInt(-3, 3)),
         cleared: false, castlePurchased: false,
         castleCost: Math.floor(100 * Math.pow(1.5, i)),
         farmActive: false, farmKillRate: 0,
@@ -385,11 +431,11 @@ function buildDungeons() {
 // ===== MONSTER UPGRADES =====
 const UPGRADE_DEFS = [
     { id:'goldChance', name:'Gold Drop Chance',  baseCost:50,  costMult:1.4,
-      apply:(u,lv) => { u.goldChance = 0.005 + lv * 0.002; }, fmt:(u) => `${(u.goldChance*100).toFixed(2)}%` },
+      apply:(u,lv) => { u.goldChance = 0.35 + lv * 0.05; },  fmt:(u) => `${(u.goldChance*100).toFixed(0)}%` },
     { id:'maxGold',    name:'Max Gold Per Drop', baseCost:80,  costMult:1.5,
       apply:(u,lv) => { u.maxGold = 20 + lv * 10; },          fmt:(u) => `${u.maxGold} g` },
     { id:'minGold',    name:'Min Gold Per Drop', baseCost:60,  costMult:1.6,
-      apply:(u,lv) => { u.minGold = lv * 2; },                fmt:(u) => `${u.minGold} g` },
+      apply:(u,lv) => { u.minGold = 3 + lv * 3; },            fmt:(u) => `${u.minGold} g` },
     { id:'itemChance', name:'Item Drop Chance',  baseCost:100, costMult:1.5,
       apply:(u,lv) => { u.itemChance = 0.009 + lv * 0.003; }, fmt:(u) => `${(u.itemChance*100).toFixed(2)}%` },
     { id:'xpBonus',    name:'XP Multiplier',     baseCost:200, costMult:2.0,
@@ -405,7 +451,7 @@ const G = {
     traveling: false, travelTicks: 0, nextDungeonIdx: 0, roomDelay: 0,
     monsters: [], inCombat: false,
     achievements: {}, dungeonsCleared: 0, castlesConquered: 0, minionsSummoned: 0,
-    upgrades: { goldChance:0.005, maxGold:20, minGold:0, itemChance:0.009, xpMult:1.0 },
+    upgrades: { goldChance:0.35, maxGold:20, minGold:3, itemChance:0.009, xpMult:1.0 },
     upgradeLevels: {},
     stats: { meleeAttacks:0, rangedAttacks:0, spellsCast:0, criticalHits:0, timesStunned:0 },
     combatLog: [],
@@ -414,6 +460,9 @@ const G = {
     selectedSkillHeroIdx: 0,
     hoveredNode: null,
     skillTreeDirty: false,  // set true when allocation or level-up occurs
+    // Global Mastery tree
+    globalAllocated: [],
+    partyMaxSize: 4,
 };
 
 // ===== UTILITY =====
@@ -433,7 +482,7 @@ function xpForLevel(lv) {
 function createHero(classId, name) {
     const cls = CLASSES.find(c => c.id === classId);
     if (!cls) return null;
-    return {
+    const hero = {
         id: Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
         name, classId, className: cls.name,
         level: 1, xp: 0, xpNeeded: xpForLevel(1),
@@ -454,6 +503,9 @@ function createHero(classId, name) {
         skillPoints: 0,
         allocatedNodes: [],
     };
+    // Apply any global mastery nodes already purchased
+    applyAllGlobalToHero(hero);
+    return hero;
 }
 
 // ===== SKILL TREE SYSTEM =====
@@ -498,6 +550,57 @@ function allocateNode(hero, nodeId) {
     const label = node.notable >= 3 ? '★ GRAND KEYSTONE' : node.notable >= 2 ? '◆ Keystone' : node.notable >= 1 ? '● Notable' : 'Node';
     log(`${hero.name} allocates [${node.name}] — ${label}`, '#FA0');
     return true;
+}
+
+// ===== GLOBAL MASTERY TREE =====
+
+function getGlobalNodeState(nodeId) {
+    if (G.globalAllocated.includes(nodeId)) return 'allocated';
+    const node = GLOBAL_TREE.find(n => n.id === nodeId);
+    if (!node) return 'locked';
+    return node.req.every(r => G.globalAllocated.includes(r)) ? 'available' : 'locked';
+}
+
+function allocateGlobalNode(nodeId) {
+    const node = GLOBAL_TREE.find(n => n.id === nodeId);
+    if (!node || G.globalAllocated.includes(nodeId)) return false;
+    if (!node.req.every(r => G.globalAllocated.includes(r))) return false;
+    if (G.adventurePoints < node.cost) return false;
+
+    G.adventurePoints -= node.cost;
+    G.globalAllocated.push(nodeId);
+
+    for (const h of G.party) applyGlobalNodeToHero(h, node);
+
+    if (nodeId === 'gk') {
+        G.partyMaxSize = 5;
+        log('★ THE FIFTH unlocked! A 5th hero may now join your party.', '#FA0');
+    }
+    const label = node.notable >= 3 ? '★ Grand Keystone' : node.notable >= 2 ? '◆ Keystone' : node.notable >= 1 ? '● Notable' : '';
+    log(`Global: [${node.name}] ${label} allocated!`, '#8CF');
+    return true;
+}
+
+function applyGlobalNodeToHero(hero, node) {
+    for (const eff of node.effects) {
+        if (eff.s === 'maxHP') {
+            hero.maxHP += eff.v;
+            hero.hp = Math.min(hero.hp + eff.v, hero.maxHP);
+        } else if (eff.s === 'maxSP') {
+            hero.maxSP += eff.v;
+            hero.sp = Math.min(hero.sp + eff.v, hero.maxSP);
+        } else {
+            hero[eff.s] = (hero[eff.s] || 0) + eff.v;
+        }
+    }
+}
+
+// Apply all currently-allocated global nodes to a newly created hero
+function applyAllGlobalToHero(hero) {
+    for (const id of G.globalAllocated) {
+        const node = GLOBAL_TREE.find(n => n.id === id);
+        if (node) applyGlobalNodeToHero(hero, node);
+    }
 }
 
 // ===== MONSTERS =====
@@ -1054,7 +1157,7 @@ function checkAllAchievements() {
 function saveGame() {
     try {
         localStorage.setItem('di_save', JSON.stringify({
-            v: 3,
+            v: 4,
             gold: G.gold, kills: G.kills, goldEarned: G.goldEarned,
             ap: G.adventurePoints,
             dungeonsCleared: G.dungeonsCleared,
@@ -1062,8 +1165,10 @@ function saveGame() {
             minionsSummoned: G.minionsSummoned,
             achievements: G.achievements,
             stats: G.stats,
+            globalAllocated: G.globalAllocated,
+            partyMaxSize: G.partyMaxSize,
             dungeons: G.dungeons.map(d => ({
-                id: d.id, cleared: d.cleared,
+                id: d.id, cleared: d.cleared, rooms: d.rooms,
                 castlePurchased: d.castlePurchased, farmActive: d.farmActive,
             })),
             upgradeLevels: G.upgradeLevels,
@@ -1072,7 +1177,7 @@ function saveGame() {
                 level: h.level, xp: h.xp, xpNeeded: h.xpNeeded,
                 maxHP: h.maxHP, hp: h.hp, maxSP: h.maxSP, sp: h.sp,
                 atk: h.atk, def: h.def, dmg: h.dmg, armor: h.armor,
-                crit: h.crit,
+                crit: h.crit, speed: h.speed,
                 kills: h.kills, totalDmg: h.totalDmg, healing: h.healing,
                 skillPoints: h.skillPoints, allocatedNodes: h.allocatedNodes,
             })),
@@ -1086,7 +1191,7 @@ function loadSave() {
         const raw = localStorage.getItem('di_save');
         if (!raw) return false;
         const s = JSON.parse(raw);
-        if (!s || s.v !== 3) return false;
+        if (!s || s.v !== 4) return false;
 
         G.gold            = s.gold            || 0;
         G.kills           = s.kills           || 0;
@@ -1097,12 +1202,15 @@ function loadSave() {
         G.minionsSummoned = s.minionsSummoned || 0;
         G.achievements    = s.achievements    || {};
         G.stats           = Object.assign(G.stats, s.stats || {});
+        G.globalAllocated = s.globalAllocated || [];
+        G.partyMaxSize    = s.partyMaxSize    || 4;
 
         if (s.dungeons) {
             for (const ds of s.dungeons) {
                 const d = G.dungeons.find(x => x.id === ds.id);
                 if (!d) continue;
                 d.cleared = ds.cleared;
+                if (ds.rooms) d.rooms = ds.rooms;  // preserve saved room counts
                 d.castlePurchased = ds.castlePurchased;
                 d.farmActive = ds.farmActive;
                 if (d.farmActive) d.farmKillRate = Math.max(1, Math.floor(d.level * 0.5));
@@ -1131,6 +1239,34 @@ function loadSave() {
                 G.gold        += totalGold;
                 G.goldEarned  += totalGold;
                 if (totalKills > 0) log(`Offline: +${totalKills} kills, +${totalGold} gold from farms.`, '#8AF');
+            }
+        }
+
+        // Restore party — stats are saved post-levelup/post-skill so no need to re-apply bonuses
+        if (s.party && s.party.length > 0) {
+            G.party = [];
+            for (const sp of s.party) {
+                const cls = CLASSES.find(c => c.id === sp.classId);
+                if (!cls) continue;
+                G.party.push({
+                    id: sp.id,
+                    name: sp.name, classId: sp.classId, className: cls.name,
+                    level: sp.level, xp: sp.xp, xpNeeded: sp.xpNeeded,
+                    maxHP: sp.maxHP, hp: Math.min(sp.hp, sp.maxHP),
+                    maxSP: sp.maxSP, sp: Math.min(sp.sp, sp.maxSP),
+                    atk: sp.atk, def: sp.def, dmg: sp.dmg, armor: sp.armor,
+                    crit: sp.crit, speed: sp.speed !== undefined ? sp.speed : cls.baseSpeed,
+                    isRanged: cls.isRanged,
+                    abilities: [...cls.abilities],
+                    cooldown: 0, stunTicks: 0,
+                    stealthed: false, rageActive: false,
+                    shieldActive: false, shieldTicks: 0,
+                    abilityCDs: {},
+                    kills: sp.kills || 0, totalDmg: sp.totalDmg || 0, healing: sp.healing || 0,
+                    spellsCast: 0, meleeAtks: 0, rangedAtks: 0,
+                    skillPoints: sp.skillPoints || 0,
+                    allocatedNodes: sp.allocatedNodes || [],
+                });
             }
         }
 
@@ -1164,6 +1300,7 @@ function updateUI() {
     updatePartyBars();
     updateCombatLog();
     updateEncounterPanel();
+    updateGlobalTreeUI();
     if (G.activeTab === 'skills' && G.skillTreeDirty) { updateSkillsUI(); G.skillTreeDirty = false; }
 }
 
@@ -1243,7 +1380,7 @@ function updateMonsterUpgradesUI() {
         if (canAfford) btn.onclick = () => buyUpgrade(def.id);
         container.appendChild(btn);
     }
-    setHTML('goldDropChance', (G.upgrades.goldChance * 100).toFixed(2) + '%');
+    setHTML('goldDropChance', (G.upgrades.goldChance * 100).toFixed(0) + '%');
     setHTML('maxGoldPerDrop', G.upgrades.maxGold + ' g');
     setHTML('minGoldPerDrop', G.upgrades.minGold + ' g');
     setHTML('itemDropChance', (G.upgrades.itemChance * 100).toFixed(2) + '%');
@@ -1337,15 +1474,163 @@ function updateStatsUI() {
     container.innerHTML = html;
 }
 
-// ===== SKILL TREE UI =====
-
+// ===== GLOBAL MASTERY TREE UI =====
 const SVG_NS = 'http://www.w3.org/2000/svg';
+
+let _globalTreeLastAP = -1;  // avoid expensive SVG rebuild every tick
+
+function updateGlobalTreeUI() {
+    const container = el('globalTreeContainer');
+    if (!container) return;
+    // Only rebuild when AP changes (allocations or achievements)
+    if (G.adventurePoints === _globalTreeLastAP) return;
+    _globalTreeLastAP = G.adventurePoints;
+
+    container.innerHTML = '';
+    const apLabel = document.createElement('div');
+    apLabel.style.cssText = 'font-size:11px;color:#8cf;text-align:center;padding:3px 0 5px;';
+    apLabel.textContent = `${G.adventurePoints} AP available`;
+    container.appendChild(apLabel);
+    container.appendChild(buildGlobalSVG());
+
+    // 5th hero recruit button
+    if (G.partyMaxSize >= 5) {
+        const btn = document.createElement('div');
+        btn.style.cssText = 'margin:6px 4px 0;padding:5px;text-align:center;font-size:11px;cursor:pointer;';
+        if (G.party.length < 5) {
+            btn.className = 'upgradeButton';
+            btn.textContent = '+ Recruit 5th Hero';
+            btn.onclick = openRecruitModal;
+        } else {
+            btn.className = 'disabledUpgradeButton';
+            btn.textContent = '★ Full Party (5/5)';
+        }
+        container.appendChild(btn);
+    }
+}
+
+function buildGlobalSVG() {
+    const svg = document.createElementNS(SVG_NS, 'svg');
+    svg.setAttribute('width', 264);
+    svg.setAttribute('height', 390);
+    svg.style.cssText = 'display:block;background:#07070f;margin:0 auto;';
+
+    // Edges
+    for (const node of GLOBAL_TREE) {
+        for (const reqId of node.req) {
+            const parent = GLOBAL_TREE.find(n => n.id === reqId);
+            if (!parent) continue;
+            const line = document.createElementNS(SVG_NS, 'line');
+            line.setAttribute('x1', parent.x); line.setAttribute('y1', parent.y);
+            line.setAttribute('x2', node.x);   line.setAttribute('y2', node.y);
+            const bothAlloc = G.globalAllocated.includes(reqId) && G.globalAllocated.includes(node.id);
+            line.setAttribute('class', 'sk-edge' + (bothAlloc ? ' allocated' : ''));
+            svg.appendChild(line);
+        }
+    }
+
+    // Nodes
+    for (const node of GLOBAL_TREE) {
+        const state = getGlobalNodeState(node.id);
+        const r = node.notable >= 3 ? 20 : node.notable >= 2 ? 16 : node.notable >= 1 ? 13 : 10;
+
+        const g = document.createElementNS(SVG_NS, 'g');
+        g.setAttribute('class', [
+            'sk-node', `sk-node-${state}`,
+            node.notable >= 1 ? 'sk-node-notable' : '',
+            node.notable >= 2 ? 'sk-node-keystone' : '',
+            node.notable >= 3 ? 'sk-node-grand' : '',
+        ].join(' ').trim());
+        g.setAttribute('transform', `translate(${node.x},${node.y})`);
+        g.style.cursor = (state === 'available' && G.adventurePoints >= node.cost) ? 'pointer' : 'default';
+
+        const circle = document.createElementNS(SVG_NS, 'circle');
+        circle.setAttribute('r', r);
+        if (node.notable >= 3) circle.setAttribute('stroke', '#f84');
+
+        const iconText = node.notable >= 3 ? '★' : node.notable >= 2 ? '◆' : node.notable >= 1 ? '●' : node.name.slice(0, 1);
+        const iconEl = document.createElementNS(SVG_NS, 'text');
+        iconEl.setAttribute('dy', node.notable >= 1 ? '-3' : '0');
+        iconEl.setAttribute('font-size', r >= 16 ? '11' : '8');
+        iconEl.setAttribute('pointer-events', 'none');
+        iconEl.textContent = iconText;
+
+        const labelEl = document.createElementNS(SVG_NS, 'text');
+        labelEl.setAttribute('dy', r + 10);
+        labelEl.setAttribute('font-size', '8');
+        labelEl.setAttribute('text-anchor', 'middle');
+        labelEl.setAttribute('fill', state === 'allocated' ? '#8cf' : state === 'available' ? '#8cf8' : '#3336');
+        labelEl.setAttribute('pointer-events', 'none');
+        labelEl.textContent = node.name.length > 13 ? node.name.slice(0, 11) + '…' : node.name;
+
+        g.appendChild(circle);
+        g.appendChild(iconEl);
+        g.appendChild(labelEl);
+
+        g.addEventListener('mouseenter', (e) => showGlobalNodeTooltip(node, state, e));
+        g.addEventListener('mousemove',  (e) => moveTooltip(e));
+        g.addEventListener('mouseleave', hideTooltip);
+        if (state === 'available') {
+            g.addEventListener('click', () => {
+                if (allocateGlobalNode(node.id)) {
+                    _globalTreeLastAP = -1;  // force rebuild
+                    updateGlobalTreeUI();
+                    updatePartyBars();
+                    hideTooltip();
+                }
+            });
+        }
+
+        svg.appendChild(g);
+    }
+    return svg;
+}
+
+function showGlobalNodeTooltip(node, state, mouseEvt) {
+    const tt = getOrCreateTooltip();
+    const tierLabel = node.notable >= 3 ? '★ Grand Keystone'
+                    : node.notable >= 2 ? '◆ Keystone'
+                    : node.notable >= 1 ? '● Notable' : '';
+
+    const effHtml = node.id === 'gk'
+        ? '<span class="tt-eff-item">Unlocks the <b>5th party slot</b></span>'
+        : fmtEffects(node.effects) + ' <span style="color:#8cf;font-size:10px">(all heroes)</span>';
+
+    let statusHtml = '';
+    if (state === 'allocated') {
+        statusHtml = `<div class="tt-status tt-allocated">✓ Allocated</div>`;
+    } else if (state === 'available') {
+        const costStr = node.cost === 0 ? 'Free' : `${node.cost} AP`;
+        const canAfford = G.adventurePoints >= node.cost;
+        statusHtml = canAfford
+            ? `<div class="tt-status tt-available">Click to Allocate · ${costStr}</div>`
+            : `<div class="tt-status tt-nopts">Need ${node.cost} AP (have ${G.adventurePoints})</div>`;
+    } else {
+        const missingNames = node.req
+            .filter(r => !G.globalAllocated.includes(r))
+            .map(r => { const n = GLOBAL_TREE.find(x => x.id === r); return n ? n.name : r; });
+        statusHtml = `<div class="tt-status tt-locked">Requires: ${missingNames.join(', ')}</div>`;
+    }
+
+    tt.innerHTML = `
+        <div class="tt-header">
+            <span class="tt-name">${node.name}</span>
+            ${tierLabel ? `<span class="tt-tier">${tierLabel}</span>` : ''}
+        </div>
+        <div class="tt-desc">${node.desc}</div>
+        ${effHtml ? `<div class="tt-effects">${effHtml}</div>` : ''}
+        ${statusHtml}`;
+
+    tt.style.display = 'block';
+    positionTooltip(tt, mouseEvt);
+}
+
+// ===== SKILL TREE UI (per-hero) =====
 
 function updateSkillsUI() {
     const wrap = el('skillTreeWrap');
     const selector = el('skillHeroSelector');
-    const infoPanel = el('skillInfoPanel');
-    if (!wrap || !selector || !infoPanel) return;
+    if (!wrap || !selector) return;
 
     // Hero selector buttons
     selector.innerHTML = '';
@@ -1365,11 +1650,6 @@ function updateSkillsUI() {
     wrap.innerHTML = '';
     const svg = buildSkillSVG(hero);
     wrap.appendChild(svg);
-
-    // Info panel default
-    infoPanel.innerHTML = `
-        <span class="sk-points">${hero.skillPoints} skill point${hero.skillPoints !== 1 ? 's' : ''} available</span>
-        <div style="color:#555;font-style:italic">Hover or click a node to view details. Earn skill points by levelling up.</div>`;
 }
 
 function buildSkillSVG(hero) {
@@ -1435,14 +1715,10 @@ function buildSkillSVG(hero) {
         g.appendChild(text);
         g.appendChild(label);
 
-        // Hover: show info in panel
-        g.addEventListener('mouseenter', () => showNodeInfo(hero, node, state));
-        g.addEventListener('mouseleave', () => {
-            const infoPanel = el('skillInfoPanel');
-            if (infoPanel) {
-                infoPanel.innerHTML = `<span class="sk-points">${hero.skillPoints} skill point${hero.skillPoints !== 1 ? 's' : ''} available</span><div style="color:#555;font-style:italic">Hover a node to view details.</div>`;
-            }
-        });
+        // Hover: floating tooltip
+        g.addEventListener('mouseenter', (e) => showNodeTooltip(hero, node, state, e));
+        g.addEventListener('mousemove',  (e) => moveTooltip(e));
+        g.addEventListener('mouseleave', hideTooltip);
 
         // Click: allocate
         if (state === 'available') {
@@ -1461,39 +1737,164 @@ function buildSkillSVG(hero) {
     return svg;
 }
 
-function showNodeInfo(hero, node, state) {
-    const infoPanel = el('skillInfoPanel');
-    if (!infoPanel) return;
+function fmtEffects(effects) {
+    if (!effects || !effects.length) return '';
+    const names = { maxHP:'Max HP', maxSP:'Max SP', dmg:'Damage', armor:'Armor', atk:'Attack', def:'Defense', crit:'Crit', speed:'Speed' };
+    return effects.map(e => {
+        const val = e.s === 'crit'  ? `+${(e.v * 100).toFixed(0)}%`
+                  : e.s === 'speed' ? `${e.v > 0 ? '+' : ''}${e.v} ticks`
+                  : `+${e.v}`;
+        return `<span class="tt-eff-item">${val} <b>${names[e.s] || e.s}</b></span>`;
+    }).join('');
+}
 
-    const tierLabel = node.notable >= 3 ? '★ Grand Keystone' : node.notable >= 2 ? '◆ Keystone' : node.notable >= 1 ? '● Notable' : 'Node';
-    const effText = node.effects.map(e => {
-        const names = { maxHP:'Max HP', maxSP:'Max SP', dmg:'Damage', armor:'Armor', atk:'Attack', def:'Defense', crit:'Crit' };
-        const val = e.s === 'crit' ? `+${(e.v * 100).toFixed(0)}%` : `+${e.v}`;
-        return `${val} ${names[e.s] || e.s}`;
-    }).join(', ');
+function getOrCreateTooltip() {
+    let tt = el('skillTooltip');
+    if (!tt) {
+        tt = document.createElement('div');
+        tt.id = 'skillTooltip';
+        tt.style.cssText = [
+            'position:fixed','z-index:9999','display:none','pointer-events:none',
+            'background:#0d0d1a','border:1px solid #3a3a5a','border-radius:4px',
+            'padding:10px 12px','max-width:240px','font-size:12px','line-height:1.5',
+            'box-shadow:0 4px 18px rgba(0,0,0,0.7)',
+        ].join(';');
+        document.body.appendChild(tt);
+    }
+    return tt;
+}
 
-    let statusLine = '';
+function showNodeTooltip(hero, node, state, mouseEvt) {
+    const tt = getOrCreateTooltip();
+    const tierLabel = node.notable >= 3 ? '★ Grand Keystone'
+                    : node.notable >= 2 ? '◆ Keystone'
+                    : node.notable >= 1 ? '● Notable' : '';
+    const effHtml = fmtEffects(node.effects);
+
+    let statusHtml = '';
     if (state === 'allocated') {
-        statusLine = `<div class="sk-status">✓ Allocated</div>`;
-    } else if (state === 'available' && hero.skillPoints > 0) {
-        statusLine = `<div class="skillAllocBtn">Click to Allocate (1 Skill Point)</div>`;
-    } else if (state === 'available' && hero.skillPoints === 0) {
-        statusLine = `<div class="skillAllocBtn disabled">No Skill Points Available</div>`;
+        statusHtml = `<div class="tt-status tt-allocated">✓ Allocated</div>`;
+    } else if (state === 'available') {
+        if (hero.skillPoints > 0) {
+            statusHtml = `<div class="tt-status tt-available">Click to Allocate · 1 Skill Point</div>`;
+        } else {
+            statusHtml = `<div class="tt-status tt-nopts">No Skill Points Available</div>`;
+        }
     } else {
-        const missing = node.req.filter(r => !hero.allocatedNodes.includes(r));
-        const missingNames = missing.map(r => { const n = getTree(hero).find(x => x.id === r); return n ? n.name : r; });
-        statusLine = `<div style="color:#555;font-size:11px">Requires: ${missingNames.join(', ')}</div>`;
+        const missingNames = node.req
+            .filter(r => !hero.allocatedNodes.includes(r))
+            .map(r => { const n = getTree(hero).find(x => x.id === r); return n ? n.name : r; });
+        statusHtml = `<div class="tt-status tt-locked">Requires: ${missingNames.join(', ')}</div>`;
     }
 
-    infoPanel.innerHTML = `
-        <span class="sk-points">${hero.skillPoints} skill point${hero.skillPoints !== 1 ? 's' : ''} available</span>
-        <div class="sk-name">${node.name} <span style="font-size:10px;color:#888;font-weight:normal">${tierLabel}</span></div>
-        <div class="sk-desc">${node.desc}</div>
-        <div class="sk-effect">${effText}</div>
-        ${statusLine}`;
+    tt.innerHTML = `
+        <div class="tt-header">
+            <span class="tt-name">${node.name}</span>
+            ${tierLabel ? `<span class="tt-tier">${tierLabel}</span>` : ''}
+        </div>
+        <div class="tt-desc">${node.desc}</div>
+        ${effHtml ? `<div class="tt-effects">${effHtml}</div>` : ''}
+        ${statusHtml}`;
+
+    tt.style.display = 'block';
+    positionTooltip(tt, mouseEvt);
+}
+
+function positionTooltip(tt, e) {
+    const pad = 14;
+    let x = e.clientX + pad;
+    let y = e.clientY + pad;
+    // Clamp to viewport after measuring
+    requestAnimationFrame(() => {
+        const w = tt.offsetWidth, h = tt.offsetHeight;
+        if (x + w + pad > window.innerWidth)  x = e.clientX - w - pad;
+        if (y + h + pad > window.innerHeight) y = e.clientY - h - pad;
+        tt.style.left = Math.max(0, x) + 'px';
+        tt.style.top  = Math.max(0, y) + 'px';
+    });
+}
+
+function moveTooltip(e) {
+    const tt = el('skillTooltip');
+    if (tt && tt.style.display !== 'none') positionTooltip(tt, e);
+}
+
+function hideTooltip() {
+    const tt = el('skillTooltip');
+    if (tt) tt.style.display = 'none';
 }
 
 // ===== PARTY CREATION =====
+function openRecruitModal() {
+    let modal = el('recruitModal');
+    if (modal) { modal.style.display = 'flex'; return; }
+
+    modal = document.createElement('div');
+    modal.id = 'recruitModal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.82);display:flex;align-items:center;justify-content:center;z-index:9998;';
+
+    const box = document.createElement('div');
+    box.style.cssText = 'background:#0b0b12;border:1px solid #3AA5E6;padding:16px;width:400px;max-height:78vh;overflow-y:auto;';
+
+    const title = document.createElement('div');
+    title.style.cssText = 'font-weight:bold;font-size:14px;color:#fa0;margin-bottom:10px;';
+    title.textContent = '★ Recruit Your 5th Hero';
+    box.appendChild(title);
+
+    const nameWrap = document.createElement('div');
+    nameWrap.style.cssText = 'margin-bottom:8px;';
+    nameWrap.innerHTML = `<input id="recruitName" type="text" placeholder="Hero name..." style="background:#111;color:#fff;border:1px solid #3AA5E6;padding:4px;width:180px;">`;
+    box.appendChild(nameWrap);
+
+    let chosen = null;
+    const classList = document.createElement('div');
+    for (const cls of CLASSES) {
+        const row = document.createElement('div');
+        row.style.cssText = 'padding:5px;margin:2px 0;border:1px solid #2b2b32;cursor:pointer;font-size:12px;';
+        row.innerHTML = `<b>${cls.name}</b> <span style="color:#8cf;font-size:10px">${cls.isRanged ? '🏹' : '⚔️'}</span> <span style="color:#888">${cls.desc}</span>`;
+        row.onclick = () => {
+            classList.querySelectorAll('div').forEach(d => { d.style.background = ''; });
+            row.style.background = '#1a1500';
+            chosen = cls.id;
+        };
+        classList.appendChild(row);
+    }
+    box.appendChild(classList);
+
+    const btnRow = document.createElement('div');
+    btnRow.style.cssText = 'display:flex;gap:6px;margin-top:10px;';
+
+    const recruitBtn = document.createElement('div');
+    recruitBtn.className = 'upgradeButton';
+    recruitBtn.style.cssText = 'padding:6px 14px;cursor:pointer;';
+    recruitBtn.textContent = 'Recruit';
+    recruitBtn.onclick = () => {
+        const heroName = el('recruitName').value.trim();
+        if (!chosen || !heroName) return;
+        const h = createHero(chosen, heroName);
+        if (h) {
+            G.party.push(h);
+            log(`${heroName} joins the party!`, '#FA0');
+        }
+        modal.style.display = 'none';
+        updatePartyBars();
+        _globalTreeLastAP = -1;
+        updateGlobalTreeUI();
+    };
+
+    const cancelBtn = document.createElement('div');
+    cancelBtn.className = 'upgradeButton';
+    cancelBtn.style.cssText = 'padding:6px 14px;cursor:pointer;color:#f84;';
+    cancelBtn.textContent = 'Cancel';
+    cancelBtn.onclick = () => { modal.style.display = 'none'; };
+
+    btnRow.appendChild(recruitBtn);
+    btnRow.appendChild(cancelBtn);
+    box.appendChild(btnRow);
+    modal.appendChild(box);
+    document.body.appendChild(modal);
+}
+
 function buildPartyCreation() {
     const container = el('partyCreationTabContent');
     container.innerHTML = '';
@@ -1501,9 +1902,8 @@ function buildPartyCreation() {
     const intro = document.createElement('div');
     intro.className = 'partyCreationIntroductionPanel';
     intro.innerHTML = `
-        <div class="sectionTitle" style="font-size:14px">The land of CLICKPOCALYPSE needs you!</div>
-        <p style="font-size:13px;margin:5px 0">All dungeons have been overrun with cruel monsters that just plain need killing.
-        Select your brave champions and murder every last one of them.</p>`;
+        <div class="sectionTitle" style="font-size:14px">⚔ DUNGEON INFINITUM ⚔</div>
+        <p style="font-size:13px;margin:5px 0">Assemble your party and descend into infinite dungeons. Each hero has a unique skill tree — invest skill points on level-up to forge your legend.</p>`;
     container.appendChild(intro);
 
     const wrap = document.createElement('div');
@@ -1600,19 +2000,18 @@ function buildPartyCreation() {
 }
 
 // ===== GAME START =====
-function launchGame() {
+function launchGame(fromSave) {
     G.started = true;
-    G.dungeons = buildDungeons();
-    loadSave();
+    // G.dungeons already built by onLoad before this is called
 
     el('partyCreationTabContent').style.display = 'none';
     el('gameTabContent').style.display = '';
 
     buildGameTabs();
     showTab('game');
+    log('Your adventure into the infinite begins!', '#FA0');
     nextDungeon();
     startLoop();
-    log('Your adventure into the infinite begins!', '#FA0');
 }
 
 function buildGameTabs() {
@@ -1692,26 +2091,62 @@ window.Game = {
             statsTab.innerHTML = `<div style="position:absolute;inset:0;overflow-y:auto;padding:5px;"><div id="statsContainer"></div></div>`;
         }
 
-        // Skills tab structure
+        // Skills tab — hero selector + SVG canvas, no info panel (uses floating tooltip now)
         const skillsTab = el('skillsTabContent');
         if (skillsTab) {
             skillsTab.innerHTML = `
                 <div class="skillHeroSelector" id="skillHeroSelector"></div>
-                <div class="skillTreeWrap" id="skillTreeWrap"></div>
-                <div class="skillInfoPanel" id="skillInfoPanel">
-                    <div style="color:#555;font-style:italic">Start the game and level up to earn skill points.</div>
-                </div>`;
+                <div class="skillTreeWrap" id="skillTreeWrap"></div>`;
         }
 
-        // Combat log in game tab
+        // Combat log — shorter to give room to party bars
         const gameTab = el('gameTabContent');
         if (gameTab && !el('combatLog')) {
             const logDiv = document.createElement('div');
-            logDiv.style.cssText = 'position:absolute;top:3px;left:3px;width:730px;height:400px;border:1px solid #2b2b32;overflow-y:auto;padding:4px;font-size:11px;';
+            logDiv.style.cssText = 'position:absolute;top:3px;left:3px;width:730px;height:240px;border:1px solid #2b2b32;overflow-y:auto;padding:4px;font-size:11px;';
             logDiv.id = 'combatLog';
             gameTab.appendChild(logDiv);
         }
 
-        buildPartyCreation();
+        // Global Mastery tree — replaces the upgrade buttons in the right panel
+        const rightPanelUpgrades = el('gameTabRightPanelUpgradeButtonContainer');
+        if (rightPanelUpgrades && !el('globalTreeContainer')) {
+            rightPanelUpgrades.innerHTML = '';
+            rightPanelUpgrades.style.overflowY = 'auto';
+            rightPanelUpgrades.style.bottom = '3px';  // fill to bottom
+
+            const titleEl = document.createElement('div');
+            titleEl.style.cssText = 'font-size:11px;font-weight:bold;color:#8cf;text-align:center;padding:4px 0 2px;border-bottom:1px solid #2b2b32;margin-bottom:2px;';
+            titleEl.textContent = '⬡ Global Mastery';
+
+            const subEl = document.createElement('div');
+            subEl.style.cssText = 'font-size:9px;color:#555;text-align:center;padding:1px 0 4px;';
+            subEl.textContent = 'Spend AP · Buffs all heroes';
+
+            const container = document.createElement('div');
+            container.id = 'globalTreeContainer';
+
+            rightPanelUpgrades.appendChild(titleEl);
+            rightPanelUpgrades.appendChild(subEl);
+            rightPanelUpgrades.appendChild(container);
+        }
+
+        // Attempt to resume from a previous save before showing party creation
+        G.dungeons = buildDungeons();
+        const hasSave = loadSave();
+        if (hasSave && G.party.length > 0) {
+            // Valid save — skip party creation and resume the game
+            G.started = true;
+            el('partyCreationTabContent').style.display = 'none';
+            el('gameTabContent').style.display = '';
+            buildGameTabs();
+            showTab('game');
+            log('Welcome back! Your adventure continues...', '#FA0');
+            nextDungeon();
+            startLoop();
+        } else {
+            // No save — show party creation screen
+            buildPartyCreation();
+        }
     }
 };

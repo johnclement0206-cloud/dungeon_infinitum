@@ -1987,23 +1987,23 @@ div {
     margin-bottom: 5px;
 }
 
-/* Combat log area needs space above bottom panel */
+/* Combat log area */
 #combatLog {
     font-size: 11px;
     line-height: 1.5;
 }
 
-/* Game tab bottom panel - push down to make room for 400px log */
+/* Party bars sit below the 240px log */
 .gameTabBottomPanel {
-    top: 410px !important;
+    top: 252px !important;
     left: 3px;
     bottom: 3px;
     width: 730px;
 }
 
-/* Encounter notification - sits just above bottom panel */
+/* Encounter notification just above bottom panel */
 .encounterNotificationPanel {
-    top: 392px !important;
+    top: 234px !important;
 }
 
 
@@ -2102,3 +2102,50 @@ div {
 .skillAllocBtn:hover { background: #041208; }
 .skillAllocBtn.disabled { border-color: #444; color: #555; cursor: default; }
 .skillAllocBtn.disabled:hover { background: transparent; }
+
+/* ===== FLOATING TOOLTIP ===== */
+#skillTooltip .tt-header {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    margin-bottom: 5px;
+}
+#skillTooltip .tt-name {
+    font-weight: bold;
+    font-size: 13px;
+    color: #fa0;
+}
+#skillTooltip .tt-tier {
+    font-size: 10px;
+    color: #888;
+}
+#skillTooltip .tt-desc {
+    color: #bbb;
+    font-size: 11px;
+    line-height: 1.45;
+    margin-bottom: 6px;
+}
+#skillTooltip .tt-effects {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: 6px;
+}
+#skillTooltip .tt-eff-item {
+    background: #0a1a0a;
+    border: 1px solid #2a4a2a;
+    border-radius: 3px;
+    padding: 1px 6px;
+    font-size: 11px;
+    color: #4f8;
+}
+#skillTooltip .tt-status {
+    font-size: 11px;
+    padding: 3px 6px;
+    border-radius: 3px;
+    margin-top: 2px;
+}
+#skillTooltip .tt-allocated { background: #0a1a08; color: #4f4; border: 1px solid #2a4a2a; }
+#skillTooltip .tt-available { background: #1a1500; color: #fa0; border: 1px solid #4a3000; cursor: pointer; }
+#skillTooltip .tt-nopts     { background: #110f00; color: #776; border: 1px solid #333; }
+#skillTooltip .tt-locked    { background: #0d0d0d; color: #555; border: 1px solid #222; }
