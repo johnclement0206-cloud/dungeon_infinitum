@@ -18,6 +18,123 @@ const CFG = {
     LOG_MAX: 60,
 };
 
+// ===== ITEM SYSTEM =====
+const ITEM_SLOTS = ['weapon','helm','armor','boots','trinket'];
+
+const ITEM_BASE_NAMES = {
+    weapon:  ['Sword','Axe','Blade','Staff','Bow','Dagger','Mace','Spear'],
+    helm:    ['Helm','Hood','Crown','Circlet','Cap','Coif'],
+    armor:   ['Chestplate','Robe','Jerkin','Hauberk','Cuirass','Vest'],
+    boots:   ['Boots','Greaves','Sabatons','Treads','Sandals'],
+    trinket: ['Ring','Amulet','Pendant','Orb','Talisman','Charm'],
+};
+
+const ITEM_PREFIXES = ['Iron','Steel','Dread','Shadow','Storm','Frost','Blazing','Ancient','Void','Cursed'];
+
+const RARITY_NAMES  = ['Common','Uncommon','Rare','Epic'];
+const RARITY_COLORS = ['#aaa','#4f8','#88f','#f84'];
+
+// Stat affinity per slot
+const SLOT_STATS = {
+    weapon:  ['atk','dmg','crit'],
+    helm:    ['maxHP','def','maxSP'],
+    armor:   ['maxHP','armor','def'],
+    boots:   ['speed','def','atk'],
+    trinket: ['dmg','crit','maxSP'],
+};
+
+function generateItem(dungLevel) {
+    const roll = randF() * 100;
+    const rarity = roll < 3 ? 3 : roll < 12 ? 2 : roll < 35 ? 1 : 0;
+
+    const slot   = ITEM_SLOTS[randInt(0, ITEM_SLOTS.length - 1)];
+    const base   = ITEM_BASE_NAMES[slot][randInt(0, ITEM_BASE_NAMES[slot].length - 1)];
+    const name   = rarity > 0 ? ITEM_PREFIXES[randInt(0, ITEM_PREFIXES.length - 1)] + ' ' + base : base;
+
+    const power   = Math.max(1, dungLevel) * (1 + rarity * 0.5);
+    const numStats = 1 + rarity;  // common=1, uncommon=2, rare=3, epic=4
+    const pool    = [...SLOT_STATS[slot]].sort(() => Math.random() - 0.5).slice(0, numStats);
+
+    const stats = {};
+    for (const s of pool) {
+        if (s === 'crit')  { stats.crit  = parseFloat((0.01 + rarity * 0.01 + randF() * 0.01).toFixed(3)); }
+        else if (s === 'speed') { stats.speed = -(1 + Math.floor(rarity * 0.6)); }  // negative = faster attacks
+        else if (s === 'maxHP') { stats.maxHP = Math.max(5,  Math.floor(power * 6  * (0.8 + randF() * 0.4))); }
+        else if (s === 'maxSP') { stats.maxSP = Math.max(3,  Math.floor(power * 4  * (0.8 + randF() * 0.4))); }
+        else if (s === 'armor') { stats.armor = Math.max(1,  Math.floor(power * 0.5 * (0.8 + randF() * 0.4))); }
+        else                    { stats[s]    = Math.max(1,  Math.floor(power * 0.8 * (0.8 + randF() * 0.4))); }
+    }
+
+    return {
+        id: Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
+        name, slot, rarity, level: dungLevel, stats,
+    };
+}
+
+function applyItemToHero(hero, item, remove = false) {
+    const sign = remove ? -1 : 1;
+    for (const [s, v] of Object.entries(item.stats)) {
+        if (s === 'maxHP') {
+            hero.maxHP += sign * v;
+            hero.hp = remove ? Math.min(hero.hp, hero.maxHP) : Math.min(hero.hp + v, hero.maxHP);
+        } else if (s === 'maxSP') {
+            hero.maxSP += sign * v;
+            hero.sp = remove ? Math.min(hero.sp, hero.maxSP) : Math.min(hero.sp + v, hero.maxSP);
+        } else {
+            hero[s] = (hero[s] || 0) + sign * v;
+        }
+    }
+}
+
+window.equipItem = function(heroIdx, itemId) {
+    const hero = G.party[heroIdx];
+    const item = G.inventory.find(i => i.id === itemId);
+    if (!hero || !item) return;
+
+    const old = hero.equipment[item.slot];
+    if (old) {
+        applyItemToHero(hero, old, true);
+        G.inventory.push(old);
+    }
+
+    G.inventory.splice(G.inventory.findIndex(i => i.id === itemId), 1);
+    hero.equipment[item.slot] = item;
+    applyItemToHero(hero, item, false);
+    log(`${hero.name} equips [${item.name}]!`, RARITY_COLORS[item.rarity]);
+    _itemsDirty = true;
+};
+
+function autoEquipIfBetter(item) {
+    // Find hero that benefits most: either has no item in slot, or our item beats theirs
+    let bestHero = -1, bestGain = 0;
+    for (let i = 0; i < G.party.length; i++) {
+        const hero = G.party[i];
+        const old  = hero.equipment[item.slot];
+        // Simple score: sum of stats
+        const newScore = Object.values(item.stats).reduce((a, b) => a + Math.abs(b), 0);
+        const oldScore = old ? Object.values(old.stats).reduce((a, b) => a + Math.abs(b), 0) : 0;
+        const gain = newScore - oldScore;
+        if (!old || gain > bestGain) { bestHero = i; bestGain = gain; }
+    }
+    if (bestHero >= 0 && bestGain >= 0) {
+        equipItem(bestHero, item.id);
+    }
+}
+
+function hero_dropItem() {
+    if (randF() >= G.upgrades.itemChance) return;
+    const dung = G.dungeons[G.currentDungeonIdx];
+    if (!dung) return;
+    const item = generateItem(dung.level);
+    G.itemsFound = (G.itemsFound || 0) + 1;
+    G.inventory.push(item);
+    log(`Found ${RARITY_NAMES[item.rarity]}: ${item.name}!`, RARITY_COLORS[item.rarity]);
+    // Trim inventory to 20 items — drop worst
+    if (G.inventory.length > 20) G.inventory.shift();
+    autoEquipIfBetter(item);
+    _itemsDirty = true;
+}
+
 // ===== SKILL TREES =====
 // Each tree has 17 nodes: root → 3 branches → 2 tier2 per branch → notable tier3 → 2 keystones → 1 grand keystone
 // Effects: { stat: string, val: number }  stats: maxHP maxSP dmg armor atk def crit
@@ -463,6 +580,8 @@ const G = {
     // Global Mastery tree
     globalAllocated: [],
     partyMaxSize: 4,
+    inventory: [],
+    itemsFound: 0,
 };
 
 // ===== UTILITY =====
@@ -502,6 +621,7 @@ function createHero(classId, name) {
         // Skill tree
         skillPoints: 0,
         allocatedNodes: [],
+        equipment: { weapon:null, helm:null, armor:null, boots:null, trinket:null },
     };
     // Apply any global mastery nodes already purchased
     applyAllGlobalToHero(hero);
@@ -714,13 +834,18 @@ function onMonsterDied(m, killer) {
     G.inCombat = livingMonsters().length > 0;
     hero_distributeXP(m.xpReward);
     hero_dropGold(m);
+    hero_dropItem();
     log(`${m.name} defeated!`, '#8AF');
     if (!G.inCombat) onRoomCleared();
 }
 
 function hero_distributeXP(total) {
-    const share = Math.max(1, Math.floor(total / G.party.length));
-    for (const h of G.party) heroGainXP(h, share);
+    const base = Math.max(1, Math.floor(total / G.party.length));
+    for (const h of G.party) {
+        // ±30% variance per hero so XP bars feel individual
+        const variance = 0.7 + randF() * 0.6;
+        heroGainXP(h, Math.max(1, Math.floor(base * variance)));
+    }
 }
 
 function hero_dropGold(monster) {
@@ -1087,6 +1212,8 @@ window.buyCastle = function(idx) {
     if (G.gold < d.castleCost) { log('Not enough gold!', '#F44'); return; }
     G.gold -= d.castleCost;
     d.castlePurchased = true;
+    d.farmActive = true;
+    d.farmKillRate = Math.max(1, Math.floor(d.level * 0.5));
     G.castlesConquered++;
     G.adventurePoints += 20;
     log(`Castle conquered in ${d.name}! +20 AP`, '#FA0');
@@ -1167,6 +1294,8 @@ function saveGame() {
             stats: G.stats,
             globalAllocated: G.globalAllocated,
             partyMaxSize: G.partyMaxSize,
+            inventory: G.inventory,
+            itemsFound: G.itemsFound,
             dungeons: G.dungeons.map(d => ({
                 id: d.id, cleared: d.cleared, rooms: d.rooms,
                 castlePurchased: d.castlePurchased, farmActive: d.farmActive,
@@ -1180,6 +1309,7 @@ function saveGame() {
                 crit: h.crit, speed: h.speed,
                 kills: h.kills, totalDmg: h.totalDmg, healing: h.healing,
                 skillPoints: h.skillPoints, allocatedNodes: h.allocatedNodes,
+                equipment: h.equipment,
             })),
             ts: Date.now(),
         }));
@@ -1204,6 +1334,8 @@ function loadSave() {
         G.stats           = Object.assign(G.stats, s.stats || {});
         G.globalAllocated = s.globalAllocated || [];
         G.partyMaxSize    = s.partyMaxSize    || 4;
+        G.inventory       = s.inventory       || [];
+        G.itemsFound      = s.itemsFound      || 0;
 
         if (s.dungeons) {
             for (const ds of s.dungeons) {
@@ -1266,6 +1398,7 @@ function loadSave() {
                     spellsCast: 0, meleeAtks: 0, rangedAtks: 0,
                     skillPoints: sp.skillPoints || 0,
                     allocatedNodes: sp.allocatedNodes || [],
+                    equipment: sp.equipment || { weapon:null, helm:null, armor:null, boots:null, trinket:null },
                 });
             }
         }
@@ -1286,7 +1419,7 @@ function showTab(tabId) {
     const li = el('tab_' + tabId);
     if (li) li.className = 'selectedTab';
     G.activeTab = tabId;
-    if (tabId === 'monsters')      updateMonsterUpgradesUI();
+    if (tabId === 'upgrades')      { buildUpgradesTab(); updateMonsterUpgradesUI(); }
     if (tabId === 'dungeons')      updateDungeonsUI();
     if (tabId === 'achievements')  updateAchievementsUI();
     if (tabId === 'stats')         updateStatsUI();
@@ -1301,6 +1434,8 @@ function updateUI() {
     updateCombatLog();
     updateEncounterPanel();
     updateGlobalTreeUI();
+    updateItemsUI();
+    updateSideUpgradesUI();
     if (G.activeTab === 'skills' && G.skillTreeDirty) { updateSkillsUI(); G.skillTreeDirty = false; }
 }
 
@@ -1365,6 +1500,26 @@ function updateEncounterPanel() {
     }
 }
 
+let _sideUpgradesLastGold = -1;
+
+function updateSideUpgradesUI() {
+    if (G.gold === _sideUpgradesLastGold) return;
+    _sideUpgradesLastGold = G.gold;
+    const container = el('sideUpgradesPanel');
+    if (!container) return;
+    container.innerHTML = '';
+    for (const def of UPGRADE_DEFS) {
+        const cost = upgradeCost(def);
+        const lv   = upgradeLevel(def.id);
+        const can  = G.gold >= cost;
+        const btn  = document.createElement('div');
+        btn.className = can ? 'sideUpgradeBtn can' : 'sideUpgradeBtn';
+        btn.innerHTML = `<span>${def.name} <span style="color:#555">Lv.${lv}</span></span><span style="color:${can?'#fa0':'#555'}">${cost.toLocaleString()}g</span>`;
+        if (can) btn.onclick = () => { buyUpgrade(def.id); _sideUpgradesLastGold = -1; };
+        container.appendChild(btn);
+    }
+}
+
 function updateMonsterUpgradesUI() {
     const container = el('monsterUpgradeButtonsContainer');
     if (!container) return;
@@ -1406,9 +1561,9 @@ function updateDungeonsUI() {
         }
         let farmPart = '';
         if (d.farmActive) {
-            farmPart = `<span style="color:#4fa">Farm Active (+${d.farmKillRate} kills/tick)</span>`;
+            farmPart = `<span style="color:#4fa">⚡ Farm +${d.farmKillRate}/tick</span>`;
         } else if (d.castlePurchased) {
-            farmPart = `<span class="upgradeButton" style="cursor:pointer" onclick="activateFarm(${d.id})">Start Farm</span>`;
+            farmPart = `<span style="color:#555;font-size:10px">(farm starting)</span>`;
         }
         div.innerHTML = `
             <span style="color:#aaa;min-width:22px;display:inline-block">${d.id + 1}.</span>
@@ -1474,38 +1629,101 @@ function updateStatsUI() {
     container.innerHTML = html;
 }
 
+// ===== ITEMS UI =====
+
+function updateItemsUI() {
+    if (!_itemsDirty) return;
+    _itemsDirty = false;
+    const panel = el('sideItemsPanel');
+    if (!panel) return;
+    panel.innerHTML = '';
+
+    // Equipped items per hero (compact view)
+    for (let hi = 0; hi < G.party.length; hi++) {
+        const hero = G.party[hi];
+        const equippedCount = ITEM_SLOTS.filter(s => hero.equipment[s]).length;
+        if (!equippedCount && G.inventory.length === 0) continue;
+        const row = document.createElement('div');
+        row.style.cssText = 'padding:2px 4px;border-bottom:1px solid #1a1a24;font-size:10px;';
+        const slots = ITEM_SLOTS.map(s => {
+            const item = hero.equipment[s];
+            const icon = {weapon:'⚔',helm:'🪖',armor:'🛡',boots:'👢',trinket:'💍'}[s];
+            return item
+                ? `<span title="${item.name}" style="color:${RARITY_COLORS[item.rarity]};cursor:default">${icon}</span>`
+                : `<span style="color:#333">${icon}</span>`;
+        }).join(' ');
+        row.innerHTML = `<span style="color:#888">${hero.name}:</span> ${slots}`;
+        panel.appendChild(row);
+    }
+
+    if (G.inventory.length === 0) {
+        const empty = document.createElement('div');
+        empty.style.cssText = 'color:#444;font-size:10px;padding:6px 4px;text-align:center;font-style:italic;';
+        empty.textContent = 'No items in inventory';
+        panel.appendChild(empty);
+        return;
+    }
+
+    const invTitle = document.createElement('div');
+    invTitle.style.cssText = 'font-size:10px;color:#555;padding:3px 4px 2px;border-bottom:1px solid #1a1a24;';
+    invTitle.textContent = `Inventory (${G.inventory.length})`;
+    panel.appendChild(invTitle);
+
+    for (const item of G.inventory) {
+        const row = document.createElement('div');
+        row.className = 'itemRow';
+        row.style.cssText = `border-left:2px solid ${RARITY_COLORS[item.rarity]};`;
+
+        const statsStr = Object.entries(item.stats)
+            .map(([s,v]) => `+${s==='crit'?(v*100).toFixed(1)+'%':v} ${s}`)
+            .join(' · ');
+
+        row.innerHTML = `
+            <div class="itemName" style="color:${RARITY_COLORS[item.rarity]}">${item.name}</div>
+            <div class="itemStats">${statsStr}</div>
+            <div class="itemEquipRow">
+                ${G.party.map((h, i) => `<span class="itemEquipBtn" onclick="equipItem(${i},'${item.id}')">${h.name}</span>`).join('')}
+            </div>`;
+        panel.appendChild(row);
+    }
+}
+
 // ===== GLOBAL MASTERY TREE UI =====
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
 let _globalTreeLastAP = -1;  // avoid expensive SVG rebuild every tick
+let _itemsDirty = true;
 
 function updateGlobalTreeUI() {
     const container = el('globalTreeContainer');
     if (!container) return;
-    // Only rebuild when AP changes (allocations or achievements)
     if (G.adventurePoints === _globalTreeLastAP) return;
     _globalTreeLastAP = G.adventurePoints;
 
+    // Update AP label
+    const apLabel = el('globalApLabel');
+    if (apLabel) apLabel.textContent = `${G.adventurePoints} AP available`;
+
     container.innerHTML = '';
-    const apLabel = document.createElement('div');
-    apLabel.style.cssText = 'font-size:11px;color:#8cf;text-align:center;padding:3px 0 5px;';
-    apLabel.textContent = `${G.adventurePoints} AP available`;
-    container.appendChild(apLabel);
     container.appendChild(buildGlobalSVG());
 
     // 5th hero recruit button
-    if (G.partyMaxSize >= 5) {
-        const btn = document.createElement('div');
-        btn.style.cssText = 'margin:6px 4px 0;padding:5px;text-align:center;font-size:11px;cursor:pointer;';
-        if (G.party.length < 5) {
-            btn.className = 'upgradeButton';
-            btn.textContent = '+ Recruit 5th Hero';
-            btn.onclick = openRecruitModal;
-        } else {
-            btn.className = 'disabledUpgradeButton';
-            btn.textContent = '★ Full Party (5/5)';
+    const recruitArea = el('globalRecruitArea');
+    if (recruitArea) {
+        recruitArea.innerHTML = '';
+        if (G.partyMaxSize >= 5) {
+            const btn = document.createElement('div');
+            btn.style.cssText = 'padding:5px 14px;text-align:center;font-size:11px;cursor:pointer;';
+            if (G.party.length < 5) {
+                btn.className = 'upgradeButton';
+                btn.textContent = '+ Recruit 5th Hero';
+                btn.onclick = openRecruitModal;
+            } else {
+                btn.className = 'disabledUpgradeButton';
+                btn.textContent = '★ Full Party (5/5)';
+            }
+            recruitArea.appendChild(btn);
         }
-        container.appendChild(btn);
     }
 }
 
@@ -1999,7 +2217,58 @@ function buildPartyCreation() {
     refresh();
 }
 
-// ===== GAME START =====
+function buildUpgradesTab() {
+    const tab = el('upgradesTabContent');
+    if (!tab || el('upgradesTabBuilt')) return;
+    tab.innerHTML = '';
+
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'position:absolute;inset:0;display:flex;gap:0;';
+
+    // Left: upgrade buttons + stats
+    const left = document.createElement('div');
+    left.style.cssText = 'width:300px;flex-shrink:0;border-right:1px solid #2b2b32;overflow-y:auto;padding:6px;';
+    left.innerHTML = `
+        <div class="sectionTitle" style="padding:4px 0 6px;">Monster Upgrades</div>
+        <div id="monsterUpgradeButtonsContainer" class="monsterUpgradeButtonsContainer"></div>
+        <table class="monsterUpgradeValuesContainer" style="margin-top:8px;">
+            <tr><th class="upgradeName">Stat</th><th class="upgradeValue">Value</th></tr>
+            <tr><td class="upgradeName">Gold drop chance</td><td id="goldDropChance" class="upgradeValue">35%</td></tr>
+            <tr><td class="upgradeName">Max gold / drop</td><td id="maxGoldPerDrop" class="upgradeValue">20 g</td></tr>
+            <tr><td class="upgradeName">Min gold / drop</td><td id="minGoldPerDrop" class="upgradeValue">3 g</td></tr>
+            <tr><td class="upgradeName">Item drop chance</td><td id="itemDropChance" class="upgradeValue">1%</td></tr>
+        </table>`;
+
+    // Right: global mastery tree
+    const right = document.createElement('div');
+    right.style.cssText = 'flex:1;overflow-y:auto;padding:6px;display:flex;flex-direction:column;align-items:center;';
+    right.innerHTML = `
+        <div class="sectionTitle" style="padding:4px 0 2px;">⬡ Global Mastery</div>
+        <div style="font-size:10px;color:#555;margin-bottom:6px;">Spend AP to buff all heroes permanently</div>
+        <div id="globalApLabel" style="font-size:12px;color:#8cf;margin-bottom:4px;"></div>
+        <div id="globalTreeContainer"></div>
+        <div id="globalRecruitArea" style="margin-top:6px;"></div>`;
+
+    // Kill count header
+    const killHeader = document.createElement('div');
+    killHeader.style.cssText = 'position:absolute;top:3px;right:3px;font-size:11px;color:#888;';
+    killHeader.innerHTML = `<span id="killCountPanel">0</span> ☠`;
+
+    wrap.appendChild(left);
+    wrap.appendChild(right);
+    tab.appendChild(wrap);
+    tab.appendChild(killHeader);
+
+    // Mark as built
+    const marker = document.createElement('div');
+    marker.id = 'upgradesTabBuilt';
+    marker.style.display = 'none';
+    tab.appendChild(marker);
+
+    _globalTreeLastAP = -1;
+}
+
+
 function launchGame(fromSave) {
     G.started = true;
     // G.dungeons already built by onLoad before this is called
@@ -2019,7 +2288,7 @@ function buildGameTabs() {
     menu.innerHTML = '';
     const ul = document.createElement('ul');
     const tabs = [
-        ['game', 'Game'], ['skills', 'Skills'], ['monsters', 'Monsters'],
+        ['game', 'Game'], ['skills', 'Skills'], ['upgrades', 'Upgrades'],
         ['dungeons', 'Dungeons'], ['achievements', 'Achievements'],
         ['stats', 'Stats'], ['info', 'Info'],
     ];
@@ -2103,32 +2372,40 @@ window.Game = {
         const gameTab = el('gameTabContent');
         if (gameTab && !el('combatLog')) {
             const logDiv = document.createElement('div');
-            logDiv.style.cssText = 'position:absolute;top:3px;left:3px;width:730px;height:240px;border:1px solid #2b2b32;overflow-y:auto;padding:4px;font-size:11px;';
+            logDiv.style.cssText = 'position:absolute;top:3px;left:3px;width:730px;height:205px;border:1px solid #2b2b32;overflow-y:auto;padding:4px;font-size:11px;';
             logDiv.id = 'combatLog';
             gameTab.appendChild(logDiv);
         }
 
-        // Global Mastery tree — replaces the upgrade buttons in the right panel
+        // Right panel: compact upgrades + items
         const rightPanelUpgrades = el('gameTabRightPanelUpgradeButtonContainer');
-        if (rightPanelUpgrades && !el('globalTreeContainer')) {
+        if (rightPanelUpgrades && !el('sideUpgradesPanel')) {
             rightPanelUpgrades.innerHTML = '';
-            rightPanelUpgrades.style.overflowY = 'auto';
-            rightPanelUpgrades.style.bottom = '3px';  // fill to bottom
+            rightPanelUpgrades.style.overflowY = 'visible';
+            rightPanelUpgrades.style.bottom = '3px';
 
-            const titleEl = document.createElement('div');
-            titleEl.style.cssText = 'font-size:11px;font-weight:bold;color:#8cf;text-align:center;padding:4px 0 2px;border-bottom:1px solid #2b2b32;margin-bottom:2px;';
-            titleEl.textContent = '⬡ Global Mastery';
+            // Upgrades section
+            const upTitle = document.createElement('div');
+            upTitle.style.cssText = 'font-size:10px;color:#888;padding:3px 4px 2px;border-bottom:1px solid #1a1a24;letter-spacing:1px;';
+            upTitle.textContent = '▲ UPGRADES';
+            const upPanel = document.createElement('div');
+            upPanel.id = 'sideUpgradesPanel';
 
-            const subEl = document.createElement('div');
-            subEl.style.cssText = 'font-size:9px;color:#555;text-align:center;padding:1px 0 4px;';
-            subEl.textContent = 'Spend AP · Buffs all heroes';
+            // Divider
+            const div1 = document.createElement('div');
+            div1.style.cssText = 'font-size:10px;color:#888;padding:3px 4px 2px;border-top:1px solid #1a1a24;border-bottom:1px solid #1a1a24;margin-top:2px;letter-spacing:1px;cursor:pointer;';
+            div1.innerHTML = '🎒 ITEMS';
+            div1.onclick = () => { /* items section is below */ };
 
-            const container = document.createElement('div');
-            container.id = 'globalTreeContainer';
+            // Items panel
+            const itemsPanel = document.createElement('div');
+            itemsPanel.id = 'sideItemsPanel';
+            itemsPanel.style.cssText = 'overflow-y:auto;max-height:400px;';
 
-            rightPanelUpgrades.appendChild(titleEl);
-            rightPanelUpgrades.appendChild(subEl);
-            rightPanelUpgrades.appendChild(container);
+            rightPanelUpgrades.appendChild(upTitle);
+            rightPanelUpgrades.appendChild(upPanel);
+            rightPanelUpgrades.appendChild(div1);
+            rightPanelUpgrades.appendChild(itemsPanel);
         }
 
         // Attempt to resume from a previous save before showing party creation

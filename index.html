@@ -39,7 +39,6 @@
                         </tr>
                     </table>
                 </div>
-                <div id="adventurePointsPanel" class="gameTabRightAdventurePointsPanel"></div>
                 <div id="upgradeButtonContainer" class="gameTabRightPanelUpgradeButtonContainer"></div>
             </div>
 
@@ -56,42 +55,8 @@
         <!-- Skills tab (populated by JS) -->
         <div id="skillsTabContent" class="tabContainer" style="display:none;"></div>
 
-        <!-- Monsters tab -->
-        <div id="monstersTabContent" class="tabContainer" style="display:none;">
-            <div id="monsterKillCountContainer" class="monsterKillCountDiv centeredElement">
-                <table style="width:100%;">
-                    <tr>
-                        <td id="killCountPanel" style="text-align:right;">0</td>
-                        <td style="width:30px;text-align:left;color:#f44;">☠</td>
-                    </tr>
-                </table>
-            </div>
-            <div class="monsterUpgradesHeaderContainer">
-                <div class="monsterUpgradesHeaderSpan">Upgrade Monsters</div>
-            </div>
-            <div id="monsterUpgradesContainer" class="monsterUpgradesContainer">
-                <div id="monsterUpgradeButtonsContainer" class="monsterUpgradeButtonsContainer"></div>
-                <table class="monsterUpgradeValuesContainer">
-                    <tr><th class="upgradeName">Upgrade</th><th class="upgradeValue">Value</th></tr>
-                    <tr>
-                        <td class="upgradeName">Gold drop chance / kill</td>
-                        <td id="goldDropChance" class="upgradeValue">0.50%</td>
-                    </tr>
-                    <tr>
-                        <td class="upgradeName">Max gold per drop</td>
-                        <td id="maxGoldPerDrop" class="upgradeValue">20 g</td>
-                    </tr>
-                    <tr>
-                        <td class="upgradeName">Min gold per drop</td>
-                        <td id="minGoldPerDrop" class="upgradeValue">0 g</td>
-                    </tr>
-                    <tr>
-                        <td class="upgradeName">Item drop chance / kill</td>
-                        <td id="itemDropChance" class="upgradeValue">0.90%</td>
-                    </tr>
-                </table>
-            </div>
-        </div>
+        <!-- Upgrades tab (JS-built) -->
+        <div id="upgradesTabContent" class="tabContainer" style="display:none;"></div>
 
         <!-- Dungeons tab -->
         <div id="dungeonsTabContent" class="tabContainer" style="display:none;"></div>

@@ -1993,17 +1993,28 @@ div {
     line-height: 1.5;
 }
 
-/* Party bars sit below the 240px log */
+/* Party bars: sit below 220px log */
 .gameTabBottomPanel {
-    top: 252px !important;
+    top: 228px !important;
     left: 3px;
-    bottom: 3px;
+    height: auto !important;
+    bottom: auto !important;
     width: 730px;
+    padding-bottom: 4px;
 }
 
-/* Encounter notification just above bottom panel */
+/* Encounter notification just above party bars */
 .encounterNotificationPanel {
-    top: 234px !important;
+    top: 210px !important;
+}
+
+/* Right panel: start at top, fill full height, no AP row needed */
+.gameTabRightAdventurePointsPanel { display: none; }
+
+.gameTabRightPanelUpgradeButtonContainer {
+    top: 28px !important;
+    bottom: 3px !important;
+    overflow-y: auto !important;
 }
 
 
@@ -2149,3 +2160,81 @@ div {
 #skillTooltip .tt-available { background: #1a1500; color: #fa0; border: 1px solid #4a3000; cursor: pointer; }
 #skillTooltip .tt-nopts     { background: #110f00; color: #776; border: 1px solid #333; }
 #skillTooltip .tt-locked    { background: #0d0d0d; color: #555; border: 1px solid #222; }
+
+
+/* ===== ITEMS SYSTEM ===== */
+
+.itemRow {
+    padding: 4px 5px 4px 7px;
+    margin: 2px 0;
+    border-left: 2px solid #888;
+    background: #0b0b12;
+    font-size: 10px;
+    cursor: default;
+}
+
+.itemRow:hover { background: #111120; }
+
+.itemName {
+    font-weight: bold;
+    font-size: 11px;
+    margin-bottom: 1px;
+}
+
+.itemStats {
+    color: #4f8;
+    font-size: 9px;
+    margin-bottom: 3px;
+}
+
+.itemEquipRow {
+    display: flex;
+    gap: 3px;
+    flex-wrap: wrap;
+}
+
+.itemEquipBtn {
+    font-size: 9px;
+    padding: 1px 5px;
+    border: 1px solid #3a3a5a;
+    cursor: pointer;
+    color: #8af;
+    border-radius: 2px;
+}
+
+.itemEquipBtn:hover {
+    background: #1a1a2a;
+    border-color: #8af;
+}
+
+/* ===== SIDEBAR UPGRADE BUTTONS ===== */
+
+.sideUpgradeBtn {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 3px 5px;
+    margin-bottom: 2px;
+    border: 1px solid #1a1a24;
+    font-size: 10px;
+    color: #666;
+    cursor: default;
+    background: #08080e;
+}
+
+.sideUpgradeBtn.can {
+    color: #ccc;
+    border-color: #2b2b42;
+    cursor: pointer;
+}
+
+.sideUpgradeBtn.can:hover {
+    background: #12121e;
+    border-color: #4a4a8a;
+}
+
+/* ===== UPGRADES TAB ===== */
+#upgradesTabContent {
+    position: absolute;
+    inset: 0;
+}
