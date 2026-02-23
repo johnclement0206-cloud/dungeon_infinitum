@@ -11,7 +11,7 @@ const CFG = {
     HP_REGEN_RATE: 0.008,
     SP_REGEN_RATE: 0.015,
     STUN_TICKS: 20,
-    SAVE_INTERVAL: 240,
+    SAVE_INTERVAL: 60,
     UI_UPDATE_INTERVAL: 2,
     TRAVEL_TICKS: 32,
     ROOM_CLEAR_DELAY: 6,
@@ -123,7 +123,7 @@ function autoEquipIfBetter(item) {
 }
 
 function hero_dropItem() {
-    if (randF() >= G.upgrades.itemChance) return;
+    if (randF() >= G.upgrades.itemChance + G.researchBonus.itemAdd) return;
     const dung = G.dungeons[G.currentDungeonIdx];
     if (!dung) return;
     const item = generateItem(dung.level);
@@ -540,25 +540,61 @@ function buildDungeons() {
     return DUNGEON_NAMES.map((name, i) => ({
         id: i, name,
         level: Math.max(1, Math.floor(i * 2.5 + 1)),
-        rooms: Math.max(7, 10 + Math.floor(i / 3) + randInt(-3, 3)),
+        rooms: Math.max(8, 14 + Math.floor(i / 2) + randInt(-2, 2)),
         cleared: false, castlePurchased: false,
-        castleCost: Math.floor(100 * Math.pow(1.5, i)),
+        castleCost: Math.floor(500 * Math.pow(1.75, i)),
         farmActive: false, farmKillRate: 0,
     }));
 }
 
 // ===== MONSTER UPGRADES =====
 const UPGRADE_DEFS = [
-    { id:'goldChance', name:'Gold Drop Chance',  baseCost:50,  costMult:1.4,
-      apply:(u,lv) => { u.goldChance = 0.35 + lv * 0.05; },  fmt:(u) => `${(u.goldChance*100).toFixed(0)}%` },
-    { id:'maxGold',    name:'Max Gold Per Drop', baseCost:80,  costMult:1.5,
-      apply:(u,lv) => { u.maxGold = 20 + lv * 10; },          fmt:(u) => `${u.maxGold} g` },
-    { id:'minGold',    name:'Min Gold Per Drop', baseCost:60,  costMult:1.6,
-      apply:(u,lv) => { u.minGold = 3 + lv * 3; },            fmt:(u) => `${u.minGold} g` },
-    { id:'itemChance', name:'Item Drop Chance',  baseCost:100, costMult:1.5,
-      apply:(u,lv) => { u.itemChance = 0.009 + lv * 0.003; }, fmt:(u) => `${(u.itemChance*100).toFixed(2)}%` },
-    { id:'xpBonus',    name:'XP Multiplier',     baseCost:200, costMult:2.0,
-      apply:(u,lv) => { u.xpMult = 1.0 + lv * 0.1; },        fmt:(u) => `${u.xpMult.toFixed(1)}x` },
+    { id:'goldChance', name:'Gold Drop Chance',  baseCost:150,  costMult:1.8,
+      apply:(u,lv) => { u.goldChance = 0.20 + lv * 0.04; },  fmt:(u) => `${(u.goldChance*100).toFixed(0)}%` },
+    { id:'maxGold',    name:'Max Gold Per Drop', baseCost:250,  costMult:1.9,
+      apply:(u,lv) => { u.maxGold = 8 + lv * 7; },           fmt:(u) => `${u.maxGold} g` },
+    { id:'minGold',    name:'Min Gold Per Drop', baseCost:180,  costMult:2.0,
+      apply:(u,lv) => { u.minGold = 1 + lv * 2; },           fmt:(u) => `${u.minGold} g` },
+    { id:'itemChance', name:'Item Drop Chance',  baseCost:400,  costMult:2.2,
+      apply:(u,lv) => { u.itemChance = 0.005 + lv * 0.003; },fmt:(u) => `${(u.itemChance*100).toFixed(2)}%` },
+    { id:'xpBonus',    name:'XP Multiplier',     baseCost:700,  costMult:2.6,
+      apply:(u,lv) => { u.xpMult = 1.0 + lv * 0.15; },      fmt:(u) => `${u.xpMult.toFixed(1)}x` },
+    { id:'goldMult',   name:'Gold Multiplier',   baseCost:500,  costMult:2.3,
+      apply:(u,lv) => { u.goldMult = 1.0 + lv * 0.2; },     fmt:(u) => `${u.goldMult.toFixed(1)}x` },
+];
+
+
+// ===== KILL MARKET (kills-as-currency sink) =====
+// Kills accumulate; every kill = 1 "kill credit". Spending is tracked in G.killsSpent.
+// Available credits = G.kills - G.killsSpent.
+// Effects apply directly to ALL current heroes (and future recruits via applyAllKillBonusesToHero).
+const KILL_MARKET_DEFS = [
+    { id:'km_dmg',   name:'Gore Mastery',      icon:'⚔',  desc:'+4 Dmg all heroes',    cost:300,   costMult:2.8, effects:[{s:'dmg',v:4}] },
+    { id:'km_atk',   name:'Veteran\'s Edge',   icon:'🗡',  desc:'+3 Atk all heroes',    cost:200,   costMult:2.5, effects:[{s:'atk',v:3}] },
+    { id:'km_hp',    name:'Iron Body',          icon:'🛡',  desc:'+30 Max HP all',       cost:600,   costMult:2.8, effects:[{s:'maxHP',v:30}] },
+    { id:'km_crit',  name:'Killing Edge',       icon:'💀',  desc:'+2% Crit all heroes',  cost:1500,  costMult:3.2, effects:[{s:'crit',v:0.02}] },
+    { id:'km_armor', name:'Battle Scarred',     icon:'🧱',  desc:'+3 Armor all heroes',  cost:2500,  costMult:3.2, effects:[{s:'armor',v:3}] },
+    { id:'km_sp',    name:'Soul Channeling',    icon:'✨',  desc:'+35 Max SP all',       cost:4000,  costMult:3.5, effects:[{s:'maxSP',v:35}] },
+    { id:'km_def',   name:'Iron Resolve',       icon:'⚙',  desc:'+4 Defense all heroes',cost:6000,  costMult:3.5, effects:[{s:'def',v:4}] },
+    { id:'km_farm',  name:'Slaughter Farms',    icon:'🌾',  desc:'+40% farm gold',       cost:10000, costMult:4.0, special:'farmBonus', value:0.4 },
+    { id:'km_spd',   name:'Lightning Feet',     icon:'⚡',  desc:'All heroes attack 1 tick faster', cost:20000, costMult:5.0, effects:[{s:'speed',v:-1}] },
+];
+
+// ===== ARCANE RESEARCH (AP sink — repeatable purchases) =====
+const RESEARCH_DEFS = [
+    { id:'rs_hpregen', name:'Fortified Vitality', icon:'💊', desc:'HP regen rate +0.3%/purchase', cost:25,  costMult:2.0, key:'hpRegen',   perLv:0.003 },
+    { id:'rs_spregen', name:'Arcane Flow',         icon:'🔵', desc:'SP regen rate +0.3%/purchase', cost:35,  costMult:2.0, key:'spRegen',   perLv:0.003 },
+    { id:'rs_xp',      name:'Scholar\'s Blessing', icon:'📖', desc:'+12% XP per purchase',         cost:80,  costMult:2.4, key:'xpMult',   perLv:0.12 },
+    { id:'rs_gold',    name:'Treasure Sense',       icon:'💰', desc:'+12% gold per purchase',        cost:60,  costMult:2.3, key:'goldMult', perLv:0.12 },
+    { id:'rs_item',    name:'Artificer\'s Touch',   icon:'🎒', desc:'+0.4% item drop/purchase',     cost:120, costMult:2.6, key:'itemAdd',  perLv:0.004 },
+    { id:'rs_travel',  name:'Swift Travel',          icon:'🏃', desc:'-4 travel ticks per purchase', cost:180, costMult:3.0, key:'travelReduce', perLv:4 },
+];
+
+// ===== MASTERY OVERCHARGE (skill point sink once tree is complete) =====
+// When a hero has all 17 nodes and SP remain, each SP spent here cycles through stat boosts.
+const MASTERY_CYCLE = [
+    {s:'maxHP',v:15},{s:'dmg',v:2},{s:'atk',v:2},{s:'crit',v:0.01},
+    {s:'armor',v:2},{s:'def',v:2},{s:'maxSP',v:20},
 ];
 
 // ===== GAME STATE =====
@@ -570,8 +606,13 @@ const G = {
     traveling: false, travelTicks: 0, nextDungeonIdx: 0, roomDelay: 0,
     monsters: [], inCombat: false,
     achievements: {}, dungeonsCleared: 0, castlesConquered: 0, minionsSummoned: 0,
-    upgrades: { goldChance:0.35, maxGold:20, minGold:3, itemChance:0.009, xpMult:1.0 },
+    upgrades: { goldChance:0.20, maxGold:8, minGold:1, itemChance:0.005, xpMult:1.0, goldMult:1.0 },
     upgradeLevels: {},
+    killsSpent: 0,              // kills spent in kill market
+    killMarketLevels: {},       // how many times each km_ was bought
+    killMarketFarmBonus: 1.0,   // accumulated farm bonus from km_farm
+    researchLevels: {},         // how many times each rs_ was bought
+    researchBonus: { hpRegen:0, spRegen:0, xpMult:0, goldMult:0, itemAdd:0, travelReduce:0 },
     stats: { meleeAttacks:0, rangedAttacks:0, spellsCast:0, criticalHits:0, timesStunned:0 },
     combatLog: [],
     settings: { offlineProcessing: true },
@@ -596,7 +637,7 @@ function log(msg, color) {
 }
 
 function xpForLevel(lv) {
-    return Math.floor(100 * lv * Math.pow(1.15, lv - 1));
+    return Math.floor(600 * lv * Math.pow(1.18, lv - 1));
 }
 
 // ===== HERO =====
@@ -623,6 +664,7 @@ function createHero(classId, name) {
         // Skill tree
         skillPoints: 0,
         allocatedNodes: [],
+        masteryLevel: 0,
         equipment: { weapon:null, helm:null, armor:null, boots:null, trinket:null },
     };
     // Apply any global mastery nodes already purchased
@@ -846,13 +888,14 @@ function hero_distributeXP(total) {
     for (const h of G.party) {
         // ±30% variance per hero so XP bars feel individual
         const variance = 0.7 + randF() * 0.6;
-        heroGainXP(h, Math.max(1, Math.floor(base * variance)));
+        heroGainXP(h, Math.max(1, Math.floor(base * variance * (1 + G.researchBonus.xpMult))));
     }
 }
 
 function hero_dropGold(monster) {
     if (randF() >= G.upgrades.goldChance) return;
-    const gold = randInt(G.upgrades.minGold, G.upgrades.maxGold);
+    let gold = randInt(G.upgrades.minGold, G.upgrades.maxGold);
+    gold = Math.floor(gold * (G.upgrades.goldMult || 1) * (1 + G.researchBonus.goldMult));
     if (gold <= 0) return;
     G.gold += gold;
     G.goldEarned += gold;
@@ -1104,8 +1147,8 @@ function onPartyDefeated() {
 function regenTick() {
     for (const h of G.party) {
         if (h.stunTicks > 0) continue;
-        h.hp = Math.min(h.maxHP, h.hp + Math.max(1, Math.floor(h.maxHP * CFG.HP_REGEN_RATE)));
-        h.sp = Math.min(h.maxSP, h.sp + Math.max(1, Math.floor(h.maxSP * CFG.SP_REGEN_RATE)));
+        h.hp = Math.min(h.maxHP, h.hp + Math.max(1, Math.floor(h.maxHP * (CFG.HP_REGEN_RATE + G.researchBonus.hpRegen))));
+        h.sp = Math.min(h.maxSP, h.sp + Math.max(1, Math.floor(h.maxSP * (CFG.SP_REGEN_RATE + G.researchBonus.spRegen))));
         if (h.shieldActive) {
             h.shieldTicks--;
             if (h.shieldTicks <= 0) h.shieldActive = false;
@@ -1236,7 +1279,7 @@ function farmTick() {
     for (const d of G.dungeons) {
         if (!d.farmActive) continue;
         G.kills += d.farmKillRate;
-        const gold = Math.floor(d.farmKillRate * d.level * G.upgrades.goldChance * G.upgrades.maxGold * 0.5);
+        const gold = Math.floor(d.farmKillRate * d.level * G.upgrades.goldChance * G.upgrades.maxGold * 0.5 * (G.upgrades.goldMult||1) * (G.killMarketFarmBonus||1) * (1+G.researchBonus.goldMult));
         G.gold += gold;
         G.goldEarned += gold;
     }
@@ -1255,6 +1298,110 @@ window.buyUpgrade = function(id) {
     G.upgradeLevels[id] = upgradeLevel(id) + 1;
     def.apply(G.upgrades, G.upgradeLevels[id]);
     updateMonsterUpgradesUI();
+};
+
+// ===== KILL MARKET =====
+function kmAvailable() { return G.kills - G.killsSpent; }
+function kmLevel(id) { return G.killMarketLevels[id] || 0; }
+function kmCost(def) { return Math.floor(def.cost * Math.pow(def.costMult, kmLevel(def.id))); }
+
+window.buyKillMarket = function(id) {
+    const def = KILL_MARKET_DEFS.find(d => d.id === id);
+    if (!def) return;
+    const cost = kmCost(def);
+    if (kmAvailable() < cost) { log('Not enough kills!', '#F44'); return; }
+    G.killsSpent += cost;
+    G.killMarketLevels[id] = (G.killMarketLevels[id] || 0) + 1;
+
+    if (def.special === 'farmBonus') {
+        G.killMarketFarmBonus = 1 + KILL_MARKET_DEFS
+            .filter(d => d.special === 'farmBonus')
+            .reduce((s, d) => s + (G.killMarketLevels[d.id] || 0) * d.value, 0);
+    } else if (def.effects) {
+        for (const eff of def.effects) {
+            for (const h of G.party) {
+                if (eff.s === 'maxHP') { h.maxHP += eff.v; h.hp = Math.min(h.hp + eff.v, h.maxHP); }
+                else if (eff.s === 'maxSP') { h.maxSP += eff.v; h.sp = Math.min(h.sp + eff.v, h.maxSP); }
+                else h[eff.s] = (h[eff.s] || 0) + eff.v;
+            }
+        }
+    }
+    log(`Kill Market: ${def.name} purchased!`, '#f84');
+};
+
+// Apply all accumulated Kill Market effects to a freshly recruited hero
+function applyKillMarketToHero(hero) {
+    for (const def of KILL_MARKET_DEFS) {
+        if (!def.effects) continue;
+        const lv = G.killMarketLevels[def.id] || 0;
+        for (let i = 0; i < lv; i++) {
+            for (const eff of def.effects) {
+                if (eff.s === 'maxHP') { hero.maxHP += eff.v; hero.hp = Math.min(hero.hp + eff.v, hero.maxHP); }
+                else if (eff.s === 'maxSP') { hero.maxSP += eff.v; hero.sp = Math.min(hero.sp + eff.v, hero.maxSP); }
+                else hero[eff.s] = (hero[eff.s] || 0) + eff.v;
+            }
+        }
+    }
+}
+
+// ===== ARCANE RESEARCH =====
+function rsCost(def) { return Math.floor(def.cost * Math.pow(def.costMult, G.researchLevels[def.id] || 0)); }
+
+function recalcResearchBonus() {
+    G.researchBonus = { hpRegen:0, spRegen:0, xpMult:0, goldMult:0, itemAdd:0, travelReduce:0 };
+    for (const def of RESEARCH_DEFS) {
+        const lv = G.researchLevels[def.id] || 0;
+        if (lv) G.researchBonus[def.key] += lv * def.perLv;
+    }
+}
+
+window.buyResearch = function(id) {
+    const def = RESEARCH_DEFS.find(d => d.id === id);
+    if (!def) return;
+    const cost = rsCost(def);
+    if (G.adventurePoints < cost) { log('Not enough AP!', '#F44'); return; }
+    G.adventurePoints -= cost;
+    G.researchLevels[id] = (G.researchLevels[id] || 0) + 1;
+    recalcResearchBonus();
+    log(`Arcane Research: ${def.name} Lv.${G.researchLevels[id]}!`, '#8cf');
+};
+
+// ===== MASTERY OVERCHARGE (skill point sink) =====
+window.heroMastery = function(heroIdx) {
+    const hero = G.party[heroIdx];
+    if (!hero || hero.skillPoints < 1 || hero.allocatedNodes.length < 17) return;
+    hero.skillPoints--;
+    const bonus = MASTERY_CYCLE[(hero.masteryLevel || 0) % MASTERY_CYCLE.length];
+    if (bonus.s === 'maxHP') { hero.maxHP += bonus.v; hero.hp = Math.min(hero.hp + bonus.v, hero.maxHP); }
+    else if (bonus.s === 'maxSP') { hero.maxSP += bonus.v; hero.sp = Math.min(hero.sp + bonus.v, hero.maxSP); }
+    else hero[bonus.s] = +(( (hero[bonus.s] || 0) + bonus.v).toFixed(3));
+    hero.masteryLevel = (hero.masteryLevel || 0) + 1;
+    const statName = {maxHP:'Max HP',maxSP:'Max SP',atk:'Attack',def:'Defense',dmg:'Damage',armor:'Armor',crit:'Crit'}[bonus.s] || bonus.s;
+    const valStr = bonus.s === 'crit' ? `+${(bonus.v*100).toFixed(0)}%` : `+${bonus.v}`;
+    log(`${hero.name} Mastery Lv.${hero.masteryLevel}: ${valStr} ${statName}!`, '#fa0');
+    G.skillTreeDirty = true;
+};
+
+// ===== EXPORT / IMPORT SAVE =====
+window.exportSave = function() {
+    saveGame();
+    const raw = localStorage.getItem('di_save') || '';
+    const encoded = btoa(raw);
+    el('exportTextarea').value = encoded;
+    el('exportTextarea').select();
+    try { document.execCommand('copy'); log('Save copied to clipboard!', '#8f8'); } catch(e) {}
+};
+
+window.importSave = function() {
+    const encoded = el('exportTextarea').value.trim();
+    if (!encoded) return;
+    try {
+        const raw = atob(encoded);
+        JSON.parse(raw);  // validate JSON
+        localStorage.setItem('di_save', raw);
+        log('Save imported — reloading…', '#8f8');
+        setTimeout(() => location.reload(), 800);
+    } catch(e) { log('Invalid save data!', '#f44'); }
 };
 
 // ===== ACHIEVEMENTS =====
@@ -1286,8 +1433,8 @@ function checkAllAchievements() {
 function saveGame() {
     try {
         localStorage.setItem('di_save', JSON.stringify({
-            v: 4,
-            gold: G.gold, kills: G.kills, goldEarned: G.goldEarned,
+            v: 5,
+            gold: G.gold, kills: G.kills, killsSpent: G.killsSpent, goldEarned: G.goldEarned,
             ap: G.adventurePoints,
             dungeonsCleared: G.dungeonsCleared,
             castlesConquered: G.castlesConquered,
@@ -1303,6 +1450,9 @@ function saveGame() {
                 castlePurchased: d.castlePurchased, farmActive: d.farmActive,
             })),
             upgradeLevels: G.upgradeLevels,
+            killMarketLevels: G.killMarketLevels,
+            killMarketFarmBonus: G.killMarketFarmBonus,
+            researchLevels: G.researchLevels,
             party: G.party.map(h => ({
                 id: h.id, name: h.name, classId: h.classId,
                 level: h.level, xp: h.xp, xpNeeded: h.xpNeeded,
@@ -1311,10 +1461,13 @@ function saveGame() {
                 crit: h.crit, speed: h.speed,
                 kills: h.kills, totalDmg: h.totalDmg, healing: h.healing,
                 skillPoints: h.skillPoints, allocatedNodes: h.allocatedNodes,
+                masteryLevel: h.masteryLevel || 0,
                 equipment: h.equipment,
             })),
             ts: Date.now(),
         }));
+        const ind = el('autosaveIndicator');
+        if (ind) { ind.style.opacity = '1'; clearTimeout(ind._t); ind._t = setTimeout(() => ind.style.opacity = '0', 2000); }
     } catch(e) { console.error('Save failed', e); }
 }
 
@@ -1323,10 +1476,11 @@ function loadSave() {
         const raw = localStorage.getItem('di_save');
         if (!raw) return false;
         const s = JSON.parse(raw);
-        if (!s || s.v !== 4) return false;
+        if (!s || (s.v !== 4 && s.v !== 5)) return false;
 
         G.gold            = s.gold            || 0;
         G.kills           = s.kills           || 0;
+        G.killsSpent      = s.killsSpent      || 0;
         G.goldEarned      = s.goldEarned      || 0;
         G.adventurePoints = s.ap              || 0;
         G.dungeonsCleared = s.dungeonsCleared || 0;
@@ -1344,7 +1498,7 @@ function loadSave() {
                 const d = G.dungeons.find(x => x.id === ds.id);
                 if (!d) continue;
                 d.cleared = ds.cleared;
-                if (ds.rooms) d.rooms = ds.rooms;  // preserve saved room counts
+                if (ds.rooms) d.rooms = ds.rooms;
                 d.castlePurchased = ds.castlePurchased;
                 d.farmActive = ds.farmActive;
                 if (d.farmActive) d.farmKillRate = Math.max(1, Math.floor(d.level * 0.5));
@@ -1359,24 +1513,34 @@ function loadSave() {
             }
         }
 
-        // Offline farm income (max 2 hours)
+        if (s.killMarketLevels) {
+            G.killMarketLevels = s.killMarketLevels;
+            G.killMarketFarmBonus = s.killMarketFarmBonus || 1;
+        }
+
+        if (s.researchLevels) {
+            G.researchLevels = s.researchLevels;
+            recalcResearchBonus();
+        }
+
+        // Offline farm income (max 8 hours)
         if (G.settings.offlineProcessing && s.ts) {
-            const ticks = Math.min(Math.floor((Date.now() - s.ts) / CFG.TICK_MS), 28800);
+            const ticks = Math.min(Math.floor((Date.now() - s.ts) / CFG.TICK_MS), 115200);
             if (ticks > 60) {
                 let totalKills = 0, totalGold = 0;
                 for (const d of G.dungeons) {
                     if (!d.farmActive) continue;
                     totalKills += d.farmKillRate * ticks;
-                    totalGold  += Math.floor(d.farmKillRate * ticks * d.level * G.upgrades.goldChance * G.upgrades.maxGold * 0.5);
+                    totalGold  += Math.floor(d.farmKillRate * ticks * d.level * G.upgrades.goldChance * G.upgrades.maxGold * 0.5 * (G.upgrades.goldMult||1) * (G.killMarketFarmBonus||1) * (1 + G.researchBonus.goldMult));
                 }
                 G.kills       += totalKills;
                 G.gold        += totalGold;
                 G.goldEarned  += totalGold;
-                if (totalKills > 0) log(`Offline: +${totalKills} kills, +${totalGold} gold from farms.`, '#8AF');
+                if (totalKills > 0) log(`Offline: +${Math.floor(totalKills).toLocaleString()} kills, +${totalGold.toLocaleString()} gold from farms.`, '#8AF');
             }
         }
 
-        // Restore party — stats are saved post-levelup/post-skill so no need to re-apply bonuses
+        // Restore party
         if (s.party && s.party.length > 0) {
             G.party = [];
             for (const sp of s.party) {
@@ -1400,6 +1564,7 @@ function loadSave() {
                     spellsCast: 0, meleeAtks: 0, rangedAtks: 0,
                     skillPoints: sp.skillPoints || 0,
                     allocatedNodes: sp.allocatedNodes || [],
+                    masteryLevel: sp.masteryLevel || 0,
                     equipment: sp.equipment || { weapon:null, helm:null, armor:null, boots:null, trinket:null },
                 });
             }
@@ -1421,7 +1586,7 @@ function showTab(tabId) {
     const li = el('tab_' + tabId);
     if (li) li.className = 'selectedTab';
     G.activeTab = tabId;
-    if (tabId === 'upgrades')      { buildUpgradesTab(); updateMonsterUpgradesUI(); }
+    if (tabId === 'upgrades')      { buildUpgradesTab(); updateMonsterUpgradesUI(); updateKillMarketUI(); updateResearchUI(); }
     if (tabId === 'dungeons')      updateDungeonsUI();
     if (tabId === 'achievements')  updateAchievementsUI();
     if (tabId === 'stats')         updateStatsUI();
@@ -1445,6 +1610,7 @@ function updateUI() {
         const sp = el('skillStatsPanel');
         if (hero && sp) sp.innerHTML = buildHeroStatsHTML(hero);
     }
+    if (G.activeTab === 'upgrades') { updateKillMarketUI(); updateResearchUI(); }
 }
 
 function updatePartyBars() {
@@ -1548,6 +1714,7 @@ function updateMonsterUpgradesUI() {
     setHTML('maxGoldPerDrop', G.upgrades.maxGold + ' g');
     setHTML('minGoldPerDrop', G.upgrades.minGold + ' g');
     setHTML('itemDropChance', (G.upgrades.itemChance * 100).toFixed(2) + '%');
+    setHTML('goldMultVal', (G.upgrades.goldMult || 1).toFixed(1) + 'x');
     setHTML('killCountPanel', G.kills.toLocaleString());
 }
 
@@ -1601,12 +1768,72 @@ function updateAchievementsUI() {
     container.insertBefore(header, container.firstChild);
 }
 
+// ===== KILL MARKET UI =====
+let _kmLastKills = -1;
+function updateKillMarketUI() {
+    const availEl = el('killMarketAvail');
+    const btnsEl  = el('killMarketButtons');
+    if (!btnsEl) return;
+    const marks = Math.floor(G.kills / 100) - Math.floor(G.killsSpent / 100);  // marks from unspent
+    const avail = G.kills - G.killsSpent;
+    const sameKills = (G.kills === _kmLastKills);
+    if (sameKills && btnsEl.children.length === KILL_MARKET_DEFS.length) return;
+    _kmLastKills = G.kills;
+
+    if (availEl) availEl.textContent = `Available kills: ${avail.toLocaleString()} (${Math.floor(avail/100)} marks unspent)`;
+    btnsEl.innerHTML = '';
+    for (const def of KILL_MARKET_DEFS) {
+        const cost = kmCost(def);
+        const lv = kmLevel(def.id);
+        const can = avail >= cost;
+        const div = document.createElement('div');
+        div.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:3px 0;border-bottom:1px solid #1a1a24;';
+        div.innerHTML = `
+            <span style="font-size:12px;">${def.icon} ${def.name} <span style="color:#555;font-size:10px;">Lv.${lv}</span></span>
+            <span>
+                <span style="color:#888;font-size:10px;margin-right:4px;">${def.desc}</span>
+                <span class="${can ? 'upgradeButton' : 'disabledUpgradeButton'}"
+                    onclick="${can ? `buyKillMarket('${def.id}');updateKillMarketUI();` : ''}"
+                    style="cursor:${can?'pointer':'default'}">⚔ ${cost.toLocaleString()}</span>
+            </span>`;
+        btnsEl.appendChild(div);
+    }
+}
+
+// ===== ARCANE RESEARCH UI =====
+let _researchLastAP = -1;
+function updateResearchUI() {
+    const btnsEl = el('arcaneResearchButtons');
+    if (!btnsEl) return;
+    if (G.adventurePoints === _researchLastAP && btnsEl.children.length === RESEARCH_DEFS.length) return;
+    _researchLastAP = G.adventurePoints;
+    btnsEl.innerHTML = '';
+    for (const def of RESEARCH_DEFS) {
+        const cost = rsCost(def);
+        const lv = G.researchLevels[def.id] || 0;
+        const can = G.adventurePoints >= cost;
+        const div = document.createElement('div');
+        div.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:3px 0;border-bottom:1px solid #1a1a24;';
+        div.innerHTML = `
+            <span style="font-size:12px;">${def.icon} ${def.name} <span style="color:#555;font-size:10px;">Lv.${lv}</span></span>
+            <span>
+                <span style="color:#888;font-size:10px;margin-right:4px;">${def.desc}</span>
+                <span class="${can ? 'upgradeButton' : 'disabledUpgradeButton'}"
+                    onclick="${can ? `buyResearch('${def.id}');updateResearchUI();` : ''}"
+                    style="cursor:${can?'pointer':'default'}">🔮 ${cost} AP</span>
+            </span>`;
+        btnsEl.appendChild(div);
+    }
+}
+
 function updateStatsUI() {
     const container = el('statsContainer');
     if (!container) return;
     const row = (label, val) => `<tr><td>${label}</td><td style="text-align:right">${typeof val === 'number' ? val.toLocaleString() : val}</td></tr>`;
-    const html = `<table class="statsTable">
+    container.innerHTML = `
+    <table class="statsTable">
         ${row('Total Kills', G.kills)}
+        ${row('Kills Available', G.kills - G.killsSpent)}
         ${row('Gold Earned', G.goldEarned)}
         ${row('Items Found', G.itemsFound || 0)}
         ${row('Dungeons Cleared', G.dungeonsCleared)}
@@ -1619,8 +1846,18 @@ function updateStatsUI() {
         ${row('Times Stunned', G.stats.timesStunned)}
         ${row('Minions Summoned', G.minionsSummoned)}
     </table>
-    <div style="margin-top:8px;color:#444;font-size:10px;">Hero stats and equipment are shown in the Characters tab.</div>`;
-    container.innerHTML = html;
+    <div style="color:#444;font-size:10px;margin-top:6px;">Hero stats and equipment are shown in the Characters tab.</div>
+    <div style="margin-top:14px;border-top:1px solid #2b2b32;padding-top:10px;">
+        <div class="sectionTitle" style="margin-bottom:8px;">💾 Save / Export</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;">
+            <span class="upgradeButton" onclick="saveGame();log('Saved!','#8f8')">Save Now</span>
+            <span class="upgradeButton" onclick="exportSave()">Export Save</span>
+            <span class="upgradeButton" onclick="importSave()">Import Save</span>
+        </div>
+        <textarea id="exportTextarea" spellcheck="false"
+            style="width:100%;height:70px;background:#0a0a10;color:#6cf;border:1px solid #2b2b32;font-size:9px;font-family:monospace;padding:4px;box-sizing:border-box;resize:none;"
+            placeholder="Paste exported save here to import…"></textarea>
+    </div>`;
 }
 
 // ===== ITEMS UI =====
@@ -1885,15 +2122,27 @@ function buildHeroStatsHTML(hero) {
         }
     }
 
+    const heroIdx = G.party.indexOf(hero);
+
     const spText = hero.skillPoints > 0
         ? `<span style="color:#fa0">⬟ ${hero.skillPoints} skill point${hero.skillPoints !== 1 ? 's' : ''} available</span>`
         : `<span style="color:#444">${hero.allocatedNodes.length}/17 nodes</span>`;
 
+    // Mastery overcharge button: only when tree is complete and SP are available
+    const treeComplete = hero.allocatedNodes.length >= 17;
+    const nextMastery = treeComplete ? MASTERY_CYCLE[(hero.masteryLevel || 0) % MASTERY_CYCLE.length] : null;
+    const masteryBtn = (treeComplete && hero.skillPoints > 0 && heroIdx >= 0)
+        ? `<div style="margin-top:4px;"><span class="upgradeButton" onclick="heroMastery(${heroIdx})" title="Cycle: ${MASTERY_CYCLE.map(m=>m.s).join('→')}">
+            ✦ Mastery Lv.${(hero.masteryLevel||0)+1} — ${nextMastery ? (nextMastery.s==='crit'?`+${(nextMastery.v*100).toFixed(0)}% crit`:`+${nextMastery.v} ${nextMastery.s}`) : ''} (1 SP)
+           </span></div>`
+        : (treeComplete ? `<div style="font-size:10px;color:#444;margin-top:3px;">Mastery Lv.${hero.masteryLevel||0} — need SP to continue</div>` : '');
+
     return `
         <div style="font-weight:bold;font-size:12px;color:#fa0;margin-bottom:2px;">${hero.name}</div>
         <div style="color:#8af;font-size:10px;margin-bottom:4px;">${hero.className} · Level ${hero.level}</div>
-        <div style="font-size:10px;margin-bottom:6px;">${spText}</div>
-        <div style="font-size:10px;color:#555;letter-spacing:1px;margin-bottom:3px;border-bottom:1px solid #1a1a24;padding-bottom:2px;">STATS</div>
+        <div style="font-size:10px;margin-bottom:2px;">${spText}</div>
+        ${masteryBtn}
+        <div style="font-size:10px;color:#555;letter-spacing:1px;margin-bottom:3px;border-bottom:1px solid #1a1a24;padding-bottom:2px;margin-top:6px;">STATS</div>
         <table class="charStatTable">
             <tr><th style="text-align:left;color:#444;font-weight:normal;">Stat</th><th style="color:#444;font-weight:normal;">Base</th><th style="color:#4f8;font-weight:normal;">+Item</th><th style="color:#8af;font-weight:normal;">Total</th></tr>
             ${rows}
@@ -2271,7 +2520,7 @@ function buildPartyCreation() {
         if (!valid.length) return;
         for (const s of valid) {
             const h = createHero(s.classId, s.name.trim());
-            if (h) G.party.push(h);
+            if (h) { applyKillMarketToHero(h); G.party.push(h); }
         }
         launchGame();
     };
@@ -2291,38 +2540,28 @@ function buildUpgradesTab() {
     const wrap = document.createElement('div');
     wrap.style.cssText = 'position:absolute;inset:0;display:flex;overflow:hidden;';
 
-    // Left: upgrade buttons + stat values
+    // Left: Monster Upgrades + Kill Market
     const left = document.createElement('div');
     left.className = 'upgradesLeft';
+    left.style.cssText += 'overflow-y:auto;';
 
-    const leftTitle = document.createElement('div');
-    leftTitle.className = 'sectionTitle';
-    leftTitle.style.cssText = 'margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid #2b2b32;';
-    leftTitle.textContent = 'Monster Upgrades';
-    left.appendChild(leftTitle);
+    left.innerHTML = `
+        <div class="sectionTitle" style="margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid #2b2b32;">Monster Upgrades</div>
+        <div id="monsterUpgradeButtonsContainer"></div>
+        <div style="font-size:10px;color:#555;margin-top:8px;margin-bottom:3px;letter-spacing:1px;">CURRENT VALUES</div>
+        <table style="width:100%;border-collapse:collapse;font-size:11px;">
+            <tr><td style="color:#aaa;">Gold drop chance</td><td id="goldDropChance" style="text-align:right;color:#fa0;">-</td></tr>
+            <tr><td style="color:#aaa;">Max gold / drop</td><td id="maxGoldPerDrop" style="text-align:right;color:#fa0;">-</td></tr>
+            <tr><td style="color:#aaa;">Min gold / drop</td><td id="minGoldPerDrop" style="text-align:right;color:#fa0;">-</td></tr>
+            <tr><td style="color:#aaa;">Item drop chance</td><td id="itemDropChance" style="text-align:right;color:#fa0;">-</td></tr>
+            <tr><td style="color:#aaa;">Gold multiplier</td><td id="goldMultVal" style="text-align:right;color:#fa0;">-</td></tr>
+        </table>
+        <div class="sectionTitle" style="margin-top:12px;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid #2b2b32;">☠ Kill Market</div>
+        <div style="font-size:10px;color:#888;margin-bottom:6px;">Spend kills (100 kills = 1 mark) on permanent party bonuses.</div>
+        <div id="killMarketAvail" style="font-size:11px;color:#f84;margin-bottom:6px;"></div>
+        <div id="killMarketButtons"></div>`;
 
-    // Upgrade buttons container — plain div, no conflicting class
-    const upBtns = document.createElement('div');
-    upBtns.id = 'monsterUpgradeButtonsContainer';
-    left.appendChild(upBtns);
-
-    // Stats table
-    const statTitle = document.createElement('div');
-    statTitle.style.cssText = 'font-size:10px;color:#555;margin-top:10px;margin-bottom:4px;letter-spacing:1px;';
-    statTitle.textContent = 'CURRENT VALUES';
-    left.appendChild(statTitle);
-
-    const statsWrap = document.createElement('table');
-    statsWrap.style.cssText = 'width:100%;border-collapse:collapse;font-size:11px;';
-    statsWrap.innerHTML = `
-        <tr><th style="text-align:left;color:#666;font-weight:normal;padding:2px 0;">Stat</th><th style="text-align:right;color:#666;font-weight:normal;">Value</th></tr>
-        <tr><td style="color:#aaa;">Gold drop chance</td><td id="goldDropChance" style="text-align:right;color:#fa0;">35%</td></tr>
-        <tr><td style="color:#aaa;">Max gold / drop</td><td id="maxGoldPerDrop" style="text-align:right;color:#fa0;">20 g</td></tr>
-        <tr><td style="color:#aaa;">Min gold / drop</td><td id="minGoldPerDrop" style="text-align:right;color:#fa0;">3 g</td></tr>
-        <tr><td style="color:#aaa;">Item drop chance</td><td id="itemDropChance" style="text-align:right;color:#fa0;">1%</td></tr>`;
-    left.appendChild(statsWrap);
-
-    // Right: global mastery tree
+    // Right: Global Mastery + Arcane Research
     const right = document.createElement('div');
     right.className = 'upgradesRight';
     right.innerHTML = `
@@ -2330,19 +2569,23 @@ function buildUpgradesTab() {
         <div style="font-size:10px;color:#555;margin-bottom:6px;">Spend AP to permanently buff all heroes</div>
         <div id="globalApLabel" style="font-size:12px;color:#8cf;margin-bottom:6px;"></div>
         <div id="globalTreeContainer"></div>
-        <div id="globalRecruitArea" style="margin-top:6px;"></div>`;
+        <div id="globalRecruitArea" style="margin-top:6px;"></div>
+        <div class="sectionTitle" style="margin-top:14px;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid #2b2b32;">🔮 Arcane Research</div>
+        <div style="font-size:10px;color:#888;margin-bottom:6px;">Spend AP on repeatable passive bonuses.</div>
+        <div id="arcaneResearchButtons"></div>`;
 
     wrap.appendChild(left);
     wrap.appendChild(right);
     tab.appendChild(wrap);
 
-    // Marker so we don't rebuild
     const marker = document.createElement('div');
     marker.id = 'upgradesTabBuilt';
     marker.style.display = 'none';
     tab.appendChild(marker);
 
     _globalTreeLastAP = -1;
+    _kmLastKills = -1;
+    _researchLastAP = -1;
 }
 
 
