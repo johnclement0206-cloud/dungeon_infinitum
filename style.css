@@ -2214,16 +2214,18 @@ div {
     justify-content: space-between;
     align-items: center;
     padding: 3px 5px;
-    margin-bottom: 2px;
-    border: 1px solid #1a1a24;
+    margin-bottom: 1px;
+    border: 1px solid #111;
     font-size: 10px;
-    color: #666;
+    color: #444;
     cursor: default;
     background: #08080e;
+    white-space: nowrap;
+    overflow: hidden;
 }
 
 .sideUpgradeBtn.can {
-    color: #ccc;
+    color: #bbb;
     border-color: #2b2b42;
     cursor: pointer;
 }
@@ -2231,6 +2233,26 @@ div {
 .sideUpgradeBtn.can:hover {
     background: #12121e;
     border-color: #4a4a8a;
+}
+
+.sideSmallBtn {
+    font-size: 9px;
+    padding: 1px 4px;
+    background: #141428;
+    border: 1px solid #3a3a6a;
+    color: #fa0;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.sideSmallBtn:hover { background: #1e1e3a; }
+.sideSmallBtnDim {
+    font-size: 9px;
+    padding: 1px 4px;
+    background: #0a0a10;
+    border: 1px solid #1a1a24;
+    color: #333;
+    cursor: default;
+    white-space: nowrap;
 }
 
 /* ===== UPGRADES TAB ===== */

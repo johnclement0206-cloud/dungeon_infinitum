@@ -629,7 +629,23 @@ const G = {
 
 // ===== UTILITY =====
 const randInt = (lo, hi) => Math.floor(Math.random() * (hi - lo + 1)) + lo;
+
+// Abbreviate large numbers: 1500 → 1.5K, 2300000 → 2.3M, etc.
+function fmtNum(n) {
+    if (n >= 1e9) return (n / 1e9).toFixed(1).replace(/\.0$/, '') + 'B';
+    if (n >= 1e6) return (n / 1e6).toFixed(1).replace(/\.0$/, '') + 'M';
+    if (n >= 1e4) return (n / 1e3).toFixed(1).replace(/\.0$/, '') + 'K';
+    return Math.floor(n).toLocaleString();
+}
 const randF = () => Math.random();
+
+// Abbreviate large numbers: 1500 → 1.5K, 2400000 → 2.4M
+function fmtNum(n) {
+    if (n >= 1e9) return (n / 1e9).toFixed(1).replace(/\.0$/, '') + 'B';
+    if (n >= 1e6) return (n / 1e6).toFixed(1).replace(/\.0$/, '') + 'M';
+    if (n >= 1e4) return (n / 1e3).toFixed(1).replace(/\.0$/, '') + 'K';
+    return Math.floor(n).toLocaleString();
+}
 
 function log(msg, color) {
     G.combatLog.unshift({ msg, color: color || '#FFF' });
@@ -1675,23 +1691,82 @@ function updateEncounterPanel() {
     }
 }
 
-let _sideUpgradesLastGold = -1;
+let _sideDirtyKey = '';
 
 function updateSideUpgradesUI() {
-    if (G.gold === _sideUpgradesLastGold) return;
-    _sideUpgradesLastGold = G.gold;
-    const container = el('sideUpgradesPanel');
-    if (!container) return;
-    container.innerHTML = '';
-    for (const def of UPGRADE_DEFS) {
-        const cost = upgradeCost(def);
-        const lv   = upgradeLevel(def.id);
-        const can  = G.gold >= cost;
-        const btn  = document.createElement('div');
-        btn.className = can ? 'sideUpgradeBtn can' : 'sideUpgradeBtn';
-        btn.innerHTML = `<span>${def.name} <span style="color:#555">Lv.${lv}</span></span><span style="color:${can?'#fa0':'#555'}">${cost.toLocaleString()}g</span>`;
-        if (can) btn.onclick = () => { buyUpgrade(def.id); _sideUpgradesLastGold = -1; };
-        container.appendChild(btn);
+    const availKills = G.kills - G.killsSpent;
+    const farmKey = G.dungeons.filter(d => d.cleared && !d.castlePurchased).length;
+    const key = `${Math.floor(G.gold)}|${Math.floor(availKills)}|${farmKey}`;
+    if (key === _sideDirtyKey) return;
+    _sideDirtyKey = key;
+
+    // Gold upgrades
+    const upPanel = el('sideUpgradesPanel');
+    if (upPanel) {
+        upPanel.innerHTML = '';
+        for (const def of UPGRADE_DEFS) {
+            const cost = upgradeCost(def);
+            const lv   = upgradeLevel(def.id);
+            const can  = G.gold >= cost;
+            const btn  = document.createElement('div');
+            btn.className = can ? 'sideUpgradeBtn can' : 'sideUpgradeBtn';
+            btn.innerHTML = `<span>${def.name} <span style="color:#444">Lv.${lv}</span></span><span style="color:${can?'#fa0':'#444'}">${fmtNum(cost)}g</span>`;
+            if (can) btn.onclick = () => { buyUpgrade(def.id); _sideDirtyKey = ''; };
+            upPanel.appendChild(btn);
+        }
+    }
+
+    // Kill Market
+    const kmPanel = el('sideKillMarketPanel');
+    if (kmPanel) {
+        kmPanel.innerHTML = '';
+        const availLn = document.createElement('div');
+        availLn.style.cssText = 'font-size:9px;color:#555;padding:2px 4px;';
+        availLn.textContent = `Available: ${fmtNum(availKills)} kills`;
+        kmPanel.appendChild(availLn);
+        for (const def of KILL_MARKET_DEFS) {
+            const cost = kmCost(def);
+            const lv   = kmLevel(def.id);
+            const can  = availKills >= cost;
+            const btn  = document.createElement('div');
+            btn.className = can ? 'sideUpgradeBtn can' : 'sideUpgradeBtn';
+            btn.innerHTML = `<span>${def.icon} ${def.name} <span style="color:#444">Lv.${lv}</span></span><span style="color:${can?'#f84':'#444'}">${fmtNum(cost)}☠</span>`;
+            if (can) btn.onclick = () => { buyKillMarket(def.id); _sideDirtyKey = ''; };
+            kmPanel.appendChild(btn);
+        }
+    }
+
+    // Castles & Farms
+    const farmPanel = el('sideFarmsPanel');
+    if (farmPanel) {
+        farmPanel.innerHTML = '';
+        let any = false;
+        for (const d of G.dungeons) {
+            if (!d.cleared) continue;
+            any = true;
+            const row = document.createElement('div');
+            row.style.cssText = 'padding:2px 4px;font-size:10px;border-bottom:1px solid #111;display:flex;justify-content:space-between;align-items:center;';
+            if (d.farmActive) {
+                row.innerHTML = `<span style="color:#888">${d.name}</span><span style="color:#4fa">⚡ +${d.farmKillRate}/tick</span>`;
+            } else if (d.castlePurchased) {
+                row.innerHTML = `<span style="color:#888">${d.name}</span><span style="color:#555">🏰 farm…</span>`;
+            } else {
+                const can = G.gold >= d.castleCost;
+                const castleBtn = document.createElement('span');
+                castleBtn.className = can ? 'sideSmallBtn' : 'sideSmallBtnDim';
+                castleBtn.textContent = `🏰 ${fmtNum(d.castleCost)}g`;
+                if (can) castleBtn.onclick = () => { buyCastle(d.id); _sideDirtyKey = ''; };
+                const nm = document.createElement('span');
+                nm.style.color = '#888';
+                nm.textContent = d.name;
+                row.appendChild(nm);
+                row.appendChild(castleBtn);
+            }
+            farmPanel.appendChild(row);
+        }
+        if (!any) {
+            farmPanel.innerHTML = '<div style="font-size:10px;color:#333;padding:4px;">Clear dungeons to unlock castles.</div>';
+        }
     }
 }
 
@@ -1706,7 +1781,7 @@ function updateMonsterUpgradesUI() {
         const btn = document.createElement('div');
         btn.className = canAfford ? 'upgradeButton' : 'disabledUpgradeButton';
         btn.style.marginBottom = '3px';
-        btn.textContent = `${def.name} (Lv.${lv}) — ${cost.toLocaleString()} g`;
+        btn.textContent = `${def.name} (Lv.${lv}) — ${fmtNum(cost)}g`;
         if (canAfford) btn.onclick = () => buyUpgrade(def.id);
         container.appendChild(btn);
     }
@@ -1733,7 +1808,7 @@ function updateDungeonsUI() {
             castlePart = `<span style="color:#fa0">🏰 Castle Owned</span>`;
         } else if (d.cleared) {
             const can = G.gold >= d.castleCost;
-            castlePart = `<span class="${can ? 'upgradeButton' : 'disabledUpgradeButton'}" style="cursor:${can ? 'pointer' : 'default'}" onclick="buyCastle(${d.id})">Buy Castle (${d.castleCost.toLocaleString()} g)</span>`;
+            castlePart = `<span class="${can ? 'upgradeButton' : 'disabledUpgradeButton'}" style="cursor:${can ? 'pointer' : 'default'}" onclick="buyCastle(${d.id})">Buy Castle (${fmtNum(d.castleCost)}g)</span>`;
         }
         let farmPart = '';
         if (d.farmActive) {
@@ -1794,7 +1869,7 @@ function updateKillMarketUI() {
                 <span style="color:#888;font-size:10px;margin-right:4px;">${def.desc}</span>
                 <span class="${can ? 'upgradeButton' : 'disabledUpgradeButton'}"
                     onclick="${can ? `buyKillMarket('${def.id}');updateKillMarketUI();` : ''}"
-                    style="cursor:${can?'pointer':'default'}">⚔ ${cost.toLocaleString()}</span>
+                    style="cursor:${can?'pointer':'default'}">⚔ ${fmtNum(cost)}</span>
             </span>`;
         btnsEl.appendChild(div);
     }
@@ -1820,7 +1895,7 @@ function updateResearchUI() {
                 <span style="color:#888;font-size:10px;margin-right:4px;">${def.desc}</span>
                 <span class="${can ? 'upgradeButton' : 'disabledUpgradeButton'}"
                     onclick="${can ? `buyResearch('${def.id}');updateResearchUI();` : ''}"
-                    style="cursor:${can?'pointer':'default'}">🔮 ${cost} AP</span>
+                    style="cursor:${can?'pointer':'default'}">🔮 ${fmtNum(cost)} AP</span>
             </span>`;
         btnsEl.appendChild(div);
     }
@@ -2700,35 +2775,33 @@ window.Game = {
             gameTab.appendChild(logDiv);
         }
 
-        // Right panel: compact upgrades + items
+        // Right panel: upgrades + kill market + farms
         const rightPanelUpgrades = el('gameTabRightPanelUpgradeButtonContainer');
         if (rightPanelUpgrades && !el('sideUpgradesPanel')) {
             rightPanelUpgrades.innerHTML = '';
-            rightPanelUpgrades.style.overflowY = 'visible';
-            rightPanelUpgrades.style.bottom = '3px';
+            rightPanelUpgrades.style.overflowY = 'auto';
 
-            // Upgrades section
-            const upTitle = document.createElement('div');
-            upTitle.style.cssText = 'font-size:10px;color:#888;padding:3px 4px 2px;border-bottom:1px solid #1a1a24;letter-spacing:1px;';
-            upTitle.textContent = '▲ UPGRADES';
+            const mkSection = (label) => {
+                const hdr = document.createElement('div');
+                hdr.style.cssText = 'font-size:9px;color:#555;padding:4px 4px 2px;letter-spacing:1px;border-bottom:1px solid #1a1a24;';
+                hdr.textContent = label;
+                rightPanelUpgrades.appendChild(hdr);
+            };
+
+            mkSection('▲ GOLD UPGRADES');
             const upPanel = document.createElement('div');
             upPanel.id = 'sideUpgradesPanel';
-
-            // Divider
-            const div1 = document.createElement('div');
-            div1.style.cssText = 'font-size:10px;color:#888;padding:3px 4px 2px;border-top:1px solid #1a1a24;border-bottom:1px solid #1a1a24;margin-top:2px;letter-spacing:1px;cursor:pointer;';
-            div1.innerHTML = '🎒 ITEMS';
-            div1.onclick = () => { /* items section is below */ };
-
-            // Items panel
-            const itemsPanel = document.createElement('div');
-            itemsPanel.id = 'sideItemsPanel';
-            itemsPanel.style.cssText = 'overflow-y:auto;max-height:400px;';
-
-            rightPanelUpgrades.appendChild(upTitle);
             rightPanelUpgrades.appendChild(upPanel);
-            rightPanelUpgrades.appendChild(div1);
-            rightPanelUpgrades.appendChild(itemsPanel);
+
+            mkSection('☠ KILL MARKET');
+            const kmPanel = document.createElement('div');
+            kmPanel.id = 'sideKillMarketPanel';
+            rightPanelUpgrades.appendChild(kmPanel);
+
+            mkSection('🏰 CASTLES & FARMS');
+            const farmPanel = document.createElement('div');
+            farmPanel.id = 'sideFarmsPanel';
+            rightPanelUpgrades.appendChild(farmPanel);
         }
 
         // Attempt to resume from a previous save before showing party creation
