@@ -18,7 +18,7 @@ Scrolls & Potions – Found as loot, scrolls deal damage to all enemies in the c
 
 Skill Trees – Each character can spend skill points to unlock nodes that boost stats and grant special abilities.
 
-Prestige & Achievements – Earn Adventure Points by killing monsters and clearing dungeons. Spend them on permanent upgrades (extra party slots, faster farms, etc.) and unlock achievements for additional points. **(CURRENTLY NOT IMPLEMENTED)**
+Prestige & Achievements – Earn Adventure Points by killing monsters and clearing dungeons. Spend them on permanent upgrades (extra party slots, faster farms, etc.) and unlock achievements for additional points. **(PARTIALLY IMPLEMENTED)**
 
 Offline Progress – While away, your farms continue to generate resources (capped at 12 hours).
 
